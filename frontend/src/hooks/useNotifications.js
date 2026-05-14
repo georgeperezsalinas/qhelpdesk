@@ -8,7 +8,7 @@ import { notification as antNotif } from 'antd'
 import { useAuthStore } from '../store/authStore'
 import api from '../services/api'
 
-const WS_BASE = import.meta.env.VITE_WS_URL || 'ws://localhost:8000'
+const WS_BASE = import.meta.env.VITE_WS_URL || `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}`
 
 // Ícono y color por tipo de notificación
 const TIPO_CONFIG = {

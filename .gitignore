@@ -15,7 +15,7 @@ build/
 # Archivos de entorno
 .env
 .env.*
-!.env.example  # dejamos una plantilla
+!.env.example
 
 
 # Logs
