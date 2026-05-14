@@ -1,0 +1,18 @@
+:root {
+  --erp-sidebar-bg: #111827;
+  --erp-sidebar-hover: rgba(255,255,255,0.06);
+  --erp-sidebar-active: rgba(59,130,246,0.18);
+  --erp-sidebar-border: rgba(255,255,255,0.08);
+  --erp-sidebar-text: rgba(255,255,255,0.55);
+  --erp-sidebar-text-act: #93c5fd;
+  --erp-sidebar-label: rgba(255,255,255,0.25);
+  --erp-accent: #1d4ed8;
+  --erp-accent-light: #dbeafe;
+  --erp-accent-text: #1e40af;
+  --erp-topbar-h: 52px;
+  --erp-sidebar-w: 228px;
+  --prio-critica-bg: #fef2f2; --prio-critica-text: #b91c1c; --prio-critica-dot: #ef4444;
+  --prio-alta-bg: #fff7ed;    --prio-alta-text: #c2410c;    --prio-alta-dot: #f59e0b;
+  --prio-media-bg: #eff6ff;   --prio-media-text: #1d4ed8;   --prio-media-dot: #3b82f6;
+  --prio-baja-bg: #f0fdf4;    --prio-baja-text: #15803d;    --prio-baja-dot: #22c55e;
+}
