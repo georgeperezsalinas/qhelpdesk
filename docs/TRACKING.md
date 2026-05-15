@@ -138,3 +138,4 @@
 | 2026-05-15 | Auditoría inicial completa. Fixes: password, notificaciones compras, rate limiting |
 | 2026-05-15 | Logging en except pass. Email transaccional con Resend (ventas@qsdsoft.com): ticket asignado, resuelto, comentario, compra aprobada/rechazada |
 | 2026-05-15 | Migración email Resend→Mailjet (a136b0d2...). Alertas SLA Celery: verificar_sla cada 15min, dedup Redis (3h/6h), WS+email por_vencer y vencido. Docker: redis+worker+beat. |
+| 2026-05-15 | Email Mailjet confirmado funcionando (prueba recibida en georgeperezsalinas@gmail.com). Backend local OK con mailjet-rest + slowapi instalados en venv. |
