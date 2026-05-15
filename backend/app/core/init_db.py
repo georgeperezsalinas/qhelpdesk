@@ -1,3 +1,4 @@
+from datetime import datetime
 from app.core.database import SessionLocal
 from app.core.security import get_password_hash
 from app.models.usuario import Usuario, RolUsuario
@@ -56,6 +57,8 @@ def crear_usuarios_iniciales():
                     rol=u["rol"],
                     area=u["area"],
                     activo=True,
+                    carga_maxima=10,
+                    creado_en=datetime.utcnow(),
                 )
                 db.add(nuevo)
                 print(f"  ✔ Creado: {u['username']} ({u['rol']})")

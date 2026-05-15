@@ -64,6 +64,7 @@ class Equipo(Base):
     garantia_hasta       = Column(Date, nullable=True)
     poliza_seguro        = Column(String(100), nullable=True)
 
+    foto_url             = Column(String(500), nullable=True)
     observaciones        = Column(Text)
     creado_en            = Column(DateTime, default=datetime.utcnow)
     actualizado_en       = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

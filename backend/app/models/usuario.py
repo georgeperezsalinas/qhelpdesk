@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, Enum, ForeignKey, Text
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, Enum, ForeignKey, Text, text
 from sqlalchemy.orm import relationship
 from datetime import datetime
 import enum
@@ -37,8 +37,8 @@ class Usuario(Base):
     foto_url            = Column(String(500))
     turno               = Column(Enum(TurnoTecnico), nullable=True)
     skills              = Column(Text)                          # "redes,servidores,impresoras"
-    carga_maxima        = Column(Integer, default=10)           # tickets simultáneos
-    creado_en           = Column(DateTime, default=datetime.utcnow)
+    carga_maxima        = Column(Integer, default=10, server_default=text("10"))
+    creado_en           = Column(DateTime, default=datetime.utcnow, server_default=text("now()"))
     ultimo_acceso       = Column(DateTime, nullable=True)
 
     # Relaciones

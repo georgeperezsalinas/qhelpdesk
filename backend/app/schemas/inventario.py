@@ -51,6 +51,7 @@ class EquipoCreate(BaseModel):
     valor_residual: float = 0
     garantia_hasta: Optional[date] = None
     poliza_seguro: Optional[str] = None
+    foto_url: Optional[str] = None
     observaciones: Optional[str] = None
 
 class EquipoUpdate(BaseModel):
@@ -71,6 +72,7 @@ class EquipoUpdate(BaseModel):
     ubicacion_fisica: Optional[str] = None
     proveedor_id: Optional[int] = None
     garantia_hasta: Optional[date] = None
+    foto_url: Optional[str] = None
     observaciones: Optional[str] = None
 
 class EquipoRead(BaseModel):
@@ -104,6 +106,7 @@ class EquipoRead(BaseModel):
     valor_residual: float = 0
     garantia_hasta: Optional[date] = None
     poliza_seguro: Optional[str] = None
+    foto_url: Optional[str] = None
     observaciones: Optional[str] = None
     creado_en: datetime
     depreciacion_anual: Optional[float] = None

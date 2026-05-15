@@ -164,8 +164,8 @@ def upgrade() -> None:
     sa.Column('foto_url', sa.String(length=500), nullable=True),
     sa.Column('turno', sa.Enum('manana', 'tarde', 'noche', name='turnotecnico'), nullable=True),
     sa.Column('skills', sa.Text(), nullable=True),
-    sa.Column('carga_maxima', sa.Integer(), nullable=True),
-    sa.Column('creado_en', sa.DateTime(), nullable=True),
+    sa.Column('carga_maxima', sa.Integer(), nullable=True, server_default='10'),
+    sa.Column('creado_en', sa.DateTime(), nullable=True, server_default=sa.text('now()')),
     sa.Column('ultimo_acceso', sa.DateTime(), nullable=True),
     sa.ForeignKeyConstraint(['sede_id'], ['sedes.id'], ),
     sa.PrimaryKeyConstraint('id')

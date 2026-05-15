@@ -1,5 +1,9 @@
+import os
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from app.core.config import settings
 from app.api.tickets         import router as tickets_router
 from app.api.inventario      import router as inventario_router
@@ -12,6 +16,11 @@ from app.api.telefonia       import router as telefonia_router
 from app.api.sedes           import router as sedes_router
 from app.api.notificaciones  import router as notif_router
 from app.api.reportes        import router as reportes_router
+from app.api.upload          import router as upload_router
+from app.api.configuracion   import router as configuracion_router
+
+UPLOAD_DIR = Path(os.environ.get("UPLOAD_DIR", "./uploads"))
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 app = FastAPI(
     title="QHELP DESK ERP – GOV TECH PRO",
@@ -38,6 +47,10 @@ app.include_router(telefonia_router,    prefix="/api/v1/telefonia",        tags=
 app.include_router(sedes_router,        prefix="/api/v1/sedes",            tags=["Sedes"])
 app.include_router(notif_router,        prefix="/api/v1/notificaciones",   tags=["Notificaciones"])
 app.include_router(reportes_router,     prefix="/api/v1/reportes",         tags=["Reportes"])
+app.include_router(upload_router,       prefix="/api/v1/upload",            tags=["Upload"])
+app.include_router(configuracion_router,prefix="/api/v1/configuracion",     tags=["Configuración"])
+
+app.mount("/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
 
 @app.get("/health")
 def health():

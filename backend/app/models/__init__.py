@@ -19,3 +19,4 @@ from app.models.contrato      import Contrato, TipoContrato
 from app.models.telefonia     import LineaTelefonica, CentralTelefonica
 from app.models.infraestructura import Servidor, BaseDatos, DispositivoRed
 from app.models.notificacion  import Notificacion, TipoNotificacion
+from app.models.configuracion import ConfiguracionApp

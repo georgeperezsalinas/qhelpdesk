@@ -18,6 +18,7 @@ class UsuarioCreate(BaseModel):
     skills: Optional[str] = None
     turno: Optional[TurnoTecnico] = None
     carga_maxima: int = 10
+    foto_url: Optional[str] = None
 
     @field_validator("password")
     @classmethod
@@ -39,6 +40,7 @@ class UsuarioUpdate(BaseModel):
     turno: Optional[TurnoTecnico] = None
     carga_maxima: Optional[int] = None
     activo: Optional[bool] = None
+    foto_url: Optional[str] = None
 
 class CambiarPasswordRequest(BaseModel):
     password_actual: str
@@ -75,8 +77,9 @@ class UsuarioRead(BaseModel):
     activo: bool
     skills: Optional[str]
     turno: Optional[TurnoTecnico]
-    carga_maxima: int
-    creado_en: datetime
+    carga_maxima: int = 10
+    foto_url: Optional[str] = None
+    creado_en: Optional[datetime] = None
     ultimo_acceso: Optional[datetime]
     class Config:
         from_attributes = True
@@ -87,10 +90,13 @@ class UsuarioResumen(BaseModel):
     username: str
     nombre: str
     apellido: str
+    email: Optional[str] = None
     rol: RolUsuario
     area: Optional[str]
     sede_id: Optional[int]
     activo: bool
+    foto_url: Optional[str] = None
+    ultimo_acceso: Optional[datetime] = None
     class Config:
         from_attributes = True
 

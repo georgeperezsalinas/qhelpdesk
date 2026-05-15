@@ -84,7 +84,7 @@ def actualizar_mi_perfil(
     current_user: Usuario = Depends(get_current_user)
 ):
     # Campos que el usuario puede editar de sí mismo
-    campos_permitidos = {"nombre", "apellido", "telefono", "celular"}
+    campos_permitidos = {"nombre", "apellido", "telefono", "celular", "foto_url"}
     for campo, valor in data.model_dump(exclude_none=True).items():
         if campo in campos_permitidos:
             setattr(current_user, campo, valor)
