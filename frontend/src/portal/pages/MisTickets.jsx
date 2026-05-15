@@ -2,18 +2,18 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Card, Typography, Space, Tag, Badge, Button, Empty,
-  Spin, Modal, Timeline, Divider, Rate, Form, Input,
-  Select, Row, Col, Statistic, Alert, message,
+  Spin, Modal, Timeline, Divider, Rate, Form, Input, Select,
+  Row, Col, Statistic, Alert, message,
 } from 'antd'
 import {
   PlusOutlined, EyeOutlined, StarOutlined,
   ClockCircleOutlined, CheckCircleOutlined,
-  MessageOutlined, ReloadOutlined,
+  MessageOutlined, ReloadOutlined, SearchOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 import 'dayjs/locale/es'
-import { ticketService, getPrioridad, getEstado, ESTADOS } from '../../services/ticketService'
+import { ticketService, getPrioridad, getEstado, ESTADOS, CATEGORIAS } from '../../services/ticketService'
 
 dayjs.extend(relativeTime)
 dayjs.locale('es')
@@ -337,6 +337,8 @@ export default function MisTickets() {
   const [tickets,  setTickets]  = useState([])
   const [loading,  setLoading]  = useState(true)
   const [filtro,   setFiltro]   = useState('todos')
+  const [busqueda, setBusqueda] = useState('')
+  const [catFiltro,setCatFiltro]= useState(null)
   const [detalle,  setDetalle]  = useState(null)
   const [nps,      setNPS]      = useState(null)
 
@@ -352,16 +354,29 @@ export default function MisTickets() {
   useEffect(() => { cargar() }, [])
 
   const ticketsFiltrados = tickets.filter(t => {
-    if (filtro === 'todos')    return true
-    if (filtro === 'abiertos') return !['resuelto','cerrado','cancelado'].includes(t.estado)
-    if (filtro === 'resueltos') return ['resuelto','cerrado'].includes(t.estado)
-    if (filtro === 'calificar') return ['resuelto','cerrado'].includes(t.estado) && !t.nps_enviado
+    // Filtro por estado
+    if (filtro === 'abiertos'  && ['resuelto','cerrado','cancelado'].includes(t.estado)) return false
+    if (filtro === 'resueltos' && !['resuelto','cerrado'].includes(t.estado)) return false
+    if (filtro === 'calificar' && !((['resuelto','cerrado'].includes(t.estado)) && !t.nps_enviado)) return false
+    // Filtro por categoría
+    if (catFiltro && t.categoria !== catFiltro) return false
+    // Búsqueda de texto
+    if (busqueda.trim()) {
+      const q = busqueda.toLowerCase()
+      const enTitulo = t.titulo?.toLowerCase().includes(q)
+      const enNumero = t.numero?.toLowerCase().includes(q)
+      const enDesc   = t.descripcion?.toLowerCase().includes(q)
+      if (!enTitulo && !enNumero && !enDesc) return false
+    }
     return true
   })
 
   const pendientesCalificar = tickets.filter(t =>
     ['resuelto','cerrado'].includes(t.estado) && !t.nps_enviado
   ).length
+
+  // Categorías presentes en los tickets del usuario
+  const categoriasPresentes = [...new Set(tickets.map(t => t.categoria).filter(Boolean))]
 
   return (
     <div>
@@ -409,24 +424,52 @@ export default function MisTickets() {
         ))}
       </Row>
 
-      {/* Filtros */}
-      <Space style={{ marginBottom: 16 }}>
-        {[
-          { key: 'todos',     label: 'Todos'         },
-          { key: 'abiertos',  label: 'En proceso'    },
-          { key: 'resueltos', label: 'Resueltos'      },
-          { key: 'calificar', label: '⭐ Por calificar'},
-        ].map(f => (
-          <Button
-            key={f.key}
-            type={filtro === f.key ? 'primary' : 'default'}
+      {/* Buscador */}
+      <Input
+        placeholder="Buscar por número, título o descripción..."
+        prefix={<SearchOutlined style={{ color: '#bbb' }} />}
+        value={busqueda}
+        onChange={e => setBusqueda(e.target.value)}
+        allowClear
+        style={{ marginBottom: 12 }}
+      />
+
+      {/* Filtros de estado */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+        <Space wrap>
+          {[
+            { key: 'todos',     label: 'Todos'          },
+            { key: 'abiertos',  label: 'En proceso'     },
+            { key: 'resueltos', label: 'Resueltos'       },
+            { key: 'calificar', label: '⭐ Por calificar' },
+          ].map(f => (
+            <Button
+              key={f.key}
+              type={filtro === f.key ? 'primary' : 'default'}
+              size="small"
+              onClick={() => setFiltro(f.key)}
+            >
+              {f.label}
+            </Button>
+          ))}
+        </Space>
+
+        {/* Filtro de categoría */}
+        {categoriasPresentes.length > 0 && (
+          <Select
             size="small"
-            onClick={() => setFiltro(f.key)}
-          >
-            {f.label}
-          </Button>
-        ))}
-      </Space>
+            allowClear
+            placeholder="Categoría"
+            style={{ minWidth: 140 }}
+            value={catFiltro}
+            onChange={v => setCatFiltro(v || null)}
+            options={categoriasPresentes.map(c => ({
+              value: c,
+              label: CATEGORIAS.find(x => x.value === c)?.label || c,
+            }))}
+          />
+        )}
+      </div>
 
       {/* Lista de tickets */}
       <Spin spinning={loading}>

@@ -1,10 +1,11 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Button, Row, Col, Card, Typography, Space, Tag } from 'antd'
+import { Button, Row, Col, Card, Typography, Space, Tag, Input } from 'antd'
 import {
   PlusCircleOutlined, FileTextOutlined, LaptopOutlined,
   WifiOutlined, MailOutlined, PrinterOutlined, LockOutlined,
   PhoneOutlined, SafetyOutlined, QuestionCircleOutlined,
-  ArrowRightOutlined, ClockCircleOutlined, CheckCircleOutlined,
+  ClockCircleOutlined, CheckCircleOutlined, BookOutlined, SearchOutlined,
 } from '@ant-design/icons'
 import { useAuthStore } from '../../store/authStore'
 
@@ -33,9 +34,15 @@ const PASOS = [
 export default function PortalInicio() {
   const navigate  = useNavigate()
   const { usuario } = useAuthStore()
+  const [busquedaKB, setBusquedaKB] = useState('')
 
   const irANuevoTicket = (categoria) => {
     navigate('/portal/nuevo-ticket', { state: { categoria } })
+  }
+
+  const buscarEnKB = () => {
+    const q = busquedaKB.trim()
+    navigate(q ? `/portal/kb?q=${encodeURIComponent(q)}` : '/portal/kb')
   }
 
   return (
@@ -70,6 +77,48 @@ export default function PortalInicio() {
           </Button>
         </Space>
       </div>
+
+      {/* BASE DE CONOCIMIENTO — búsqueda rápida */}
+      <Card
+        style={{ marginBottom: 28, background: '#f6f9ff', border: '1px solid #d6e4ff' }}
+        styles={{ body: { padding: '20px 24px' } }}
+      >
+        <Row align="middle" gutter={16}>
+          <Col flex="auto">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+              <BookOutlined style={{ color: '#1677ff', fontSize: 18 }} />
+              <Text strong style={{ fontSize: 15 }}>Busca en la base de conocimiento</Text>
+            </div>
+            <Text type="secondary" style={{ fontSize: 13 }}>
+              Antes de crear un ticket, busca si ya existe una solución documentada.
+            </Text>
+            <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+              <Input
+                placeholder="Ej: no puedo imprimir, VPN no conecta, olvide mi clave..."
+                prefix={<SearchOutlined style={{ color: '#bbb' }} />}
+                value={busquedaKB}
+                onChange={e => setBusquedaKB(e.target.value)}
+                onPressEnter={buscarEnKB}
+                allowClear
+                style={{ flex: 1 }}
+              />
+              <Button type="primary" onClick={buscarEnKB} icon={<SearchOutlined />}>
+                Buscar
+              </Button>
+            </div>
+          </Col>
+          <Col flex="none" style={{ textAlign: 'right' }}>
+            <Button
+              type="link"
+              icon={<BookOutlined />}
+              onClick={() => navigate('/portal/kb')}
+              style={{ padding: 0 }}
+            >
+              Ver todos los artículos
+            </Button>
+          </Col>
+        </Row>
+      </Card>
 
       {/* CATEGORÍAS RÁPIDAS */}
       <Title level={5} style={{ marginBottom: 16 }}>¿Qué tipo de problema tienes?</Title>

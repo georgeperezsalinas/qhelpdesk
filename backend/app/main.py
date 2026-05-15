@@ -24,6 +24,7 @@ from app.api.notificaciones  import router as notif_router
 from app.api.reportes        import router as reportes_router
 from app.api.upload          import router as upload_router
 from app.api.configuracion   import router as configuracion_router
+from app.api.conocimiento    import router as conocimiento_router
 
 UPLOAD_DIR = Path(os.environ.get("UPLOAD_DIR", "./uploads"))
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
@@ -58,6 +59,7 @@ app.include_router(notif_router,        prefix="/api/v1/notificaciones",   tags=
 app.include_router(reportes_router,     prefix="/api/v1/reportes",         tags=["Reportes"])
 app.include_router(upload_router,       prefix="/api/v1/upload",            tags=["Upload"])
 app.include_router(configuracion_router,prefix="/api/v1/configuracion",     tags=["Configuración"])
+app.include_router(conocimiento_router, prefix="/api/v1/conocimiento",      tags=["Base de Conocimiento"])
 
 app.mount("/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
 

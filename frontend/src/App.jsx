@@ -20,6 +20,7 @@ import ConfiguracionPage   from './modules/configuracion/ConfiguracionPage'
 import PortalInicio        from './portal/pages/PortalInicio'
 import NuevoTicket         from './portal/pages/NuevoTicket'
 import MisTickets          from './portal/pages/MisTickets'
+import BaseConocimiento    from './portal/pages/BaseConocimiento'
 import { useAuthStore }    from './store/authStore'
 
 const ROLES_INTERNOS = ['jefe', 'especialista', 'mesa_ayuda']
@@ -89,6 +90,7 @@ export default function App() {
           <Route index               element={<PortalInicio />} />
           <Route path="nuevo-ticket" element={<NuevoTicket />} />
           <Route path="mis-tickets"  element={<MisTickets />} />
+          <Route path="kb"           element={<BaseConocimiento />} />
         </Route>
 
         <Route path="/" element={<ProtectedInterno><LayoutPrincipal /></ProtectedInterno>}>

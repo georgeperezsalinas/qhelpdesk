@@ -1,8 +1,8 @@
 import { Layout, Typography, Space, Avatar, Dropdown, Button, Tag } from 'antd'
 import { Outlet, useNavigate } from 'react-router-dom'
 import {
-  LogoutOutlined, UserOutlined, FileTextOutlined,
-  PlusCircleOutlined, HomeOutlined,
+  LogoutOutlined, FileTextOutlined,
+  PlusCircleOutlined, HomeOutlined, BookOutlined,
 } from '@ant-design/icons'
 import { useAuthStore } from '../../store/authStore'
 
@@ -25,12 +25,14 @@ export default function PortalLayout() {
   const menuUsuario = {
     items: [
       { key: 'mis-tickets', icon: <FileTextOutlined />, label: 'Mis tickets' },
+      { key: 'kb',          icon: <BookOutlined />,     label: 'Base de conocimiento' },
       { type: 'divider' },
       { key: 'logout', icon: <LogoutOutlined />, label: 'Cerrar sesión', danger: true },
     ],
     onClick: ({ key }) => {
       if (key === 'logout')     { logout(); navigate('/login') }
       if (key === 'mis-tickets') navigate('/portal/mis-tickets')
+      if (key === 'kb')          navigate('/portal/kb')
     }
   }
 
@@ -79,6 +81,14 @@ export default function PortalLayout() {
             onClick={() => navigate('/portal/mis-tickets')}
           >
             Mis tickets
+          </Button>
+          <Button
+            type="text"
+            icon={<BookOutlined />}
+            style={{ color: '#fff' }}
+            onClick={() => navigate('/portal/kb')}
+          >
+            Ayuda
           </Button>
           <Button
             icon={<PlusCircleOutlined />}
