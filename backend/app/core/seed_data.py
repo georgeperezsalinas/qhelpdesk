@@ -74,32 +74,33 @@ def _proveedores(db):
 def _usuarios(db):
     from app.models.usuario import Usuario, RolUsuario
     from app.models.sede import Sede
-    if db.query(Usuario).filter(Usuario.username == "director").first(): return
 
     sede_central  = db.query(Sede).filter(Sede.codigo == "LIMA-CENTRAL").first()
     sede_norte    = db.query(Sede).filter(Sede.codigo == "TRU-01").first()
     sede_sur      = db.query(Sede).filter(Sede.codigo == "AQP-01").first()
     sede_oriente  = db.query(Sede).filter(Sede.codigo == "IQT-01").first()
 
-    usuarios = [
+    existentes = {u.username for u in db.query(Usuario).all()}
+
+    candidatos = [
         # ── Alta Dirección ──────────────────────────────────────────────────
         Usuario(username="director",   email="director@entidad.gob.pe",
                 nombre="Roberto",      apellido="Mendoza Paredes",
                 hashed_password=hash_pw("Director2024*"),
                 rol=RolUsuario.alta_direccion,
-                area="Dirección General", sede_id=sede_central.id),
+                area="Dirección General", sede_id=sede_central.id if sede_central else None),
         Usuario(username="subdirector", email="subdirector@entidad.gob.pe",
                 nombre="Carmen",       apellido="Huanca Flores",
                 hashed_password=hash_pw("SubDir2024*"),
                 rol=RolUsuario.alta_direccion,
-                area="Sub Dirección", sede_id=sede_central.id),
+                area="Sub Dirección", sede_id=sede_central.id if sede_central else None),
 
         # ── Jefe de área ────────────────────────────────────────────────────
         Usuario(username="jefesistemas", email="jefesistemas@entidad.gob.pe",
                 nombre="Eduardo",      apellido="Castillo Ríos",
                 hashed_password=hash_pw("Jefe2024*"),
                 rol=RolUsuario.jefe, cargo="Jefe de la Oficina de Sistemas",
-                area="Oficina de Sistemas", sede_id=sede_central.id,
+                area="Oficina de Sistemas", sede_id=sede_central.id if sede_central else None,
                 carga_maxima=50),
 
         # ── Especialistas ───────────────────────────────────────────────────
@@ -107,19 +108,19 @@ def _usuarios(db):
                 nombre="Miguel",        apellido="Torres Vega",
                 hashed_password=hash_pw("Esp2024*"),
                 rol=RolUsuario.especialista, cargo="Especialista en Redes",
-                area="Oficina de Sistemas", sede_id=sede_central.id,
+                area="Oficina de Sistemas", sede_id=sede_central.id if sede_central else None,
                 skills="redes,firewall,vpn,switches", carga_maxima=15),
         Usuario(username="esp_servidores", email="esp.servidores@entidad.gob.pe",
                 nombre="Patricia",      apellido="Luna Campos",
                 hashed_password=hash_pw("Esp2024*"),
                 rol=RolUsuario.especialista, cargo="Especialista en Servidores",
-                area="Oficina de Sistemas", sede_id=sede_central.id,
+                area="Oficina de Sistemas", sede_id=sede_central.id if sede_central else None,
                 skills="servidores,bases_datos,backup,linux,windows_server", carga_maxima=15),
         Usuario(username="esp_seguridad", email="esp.seguridad@entidad.gob.pe",
                 nombre="Andrés",        apellido="Poma Ccari",
                 hashed_password=hash_pw("Esp2024*"),
                 rol=RolUsuario.especialista, cargo="Especialista en Seguridad",
-                area="Oficina de Sistemas", sede_id=sede_central.id,
+                area="Oficina de Sistemas", sede_id=sede_central.id if sede_central else None,
                 skills="seguridad,firewall,antivirus,correo", carga_maxima=15),
 
         # ── Mesa de ayuda ───────────────────────────────────────────────────
@@ -127,19 +128,19 @@ def _usuarios(db):
                 nombre="Lucía",        apellido="Quispe Mamani",
                 hashed_password=hash_pw("Mesa2024*"),
                 rol=RolUsuario.mesa_ayuda, cargo="Técnico Mesa de Ayuda",
-                area="Oficina de Sistemas", sede_id=sede_central.id,
+                area="Oficina de Sistemas", sede_id=sede_central.id if sede_central else None,
                 skills="hardware,software,impresoras,office", carga_maxima=20),
         Usuario(username="mesa2",      email="mesa2@entidad.gob.pe",
                 nombre="José",         apellido="Vargas Huallpa",
                 hashed_password=hash_pw("Mesa2024*"),
                 rol=RolUsuario.mesa_ayuda, cargo="Técnico Mesa de Ayuda",
-                area="Oficina de Sistemas", sede_id=sede_central.id,
+                area="Oficina de Sistemas", sede_id=sede_central.id if sede_central else None,
                 skills="hardware,software,accesos,office", carga_maxima=20),
         Usuario(username="mesa3",      email="mesa3@entidad.gob.pe",
                 nombre="Rosa",         apellido="Chávez Tello",
                 hashed_password=hash_pw("Mesa2024*"),
                 rol=RolUsuario.mesa_ayuda, cargo="Técnico Mesa de Ayuda",
-                area="Oficina de Sistemas", sede_id=sede_central.id,
+                area="Oficina de Sistemas", sede_id=sede_central.id if sede_central else None,
                 skills="hardware,software,telefonia,office", carga_maxima=20),
 
         # ── Técnico de sedes remotas ────────────────────────────────────────
@@ -147,13 +148,13 @@ def _usuarios(db):
                 nombre="Fernando",     apellido="Alva Reyes",
                 hashed_password=hash_pw("Tec2024*"),
                 rol=RolUsuario.especialista, cargo="Técnico TI – Sede Norte",
-                area="Oficina de Sistemas", sede_id=sede_norte.id,
+                area="Oficina de Sistemas", sede_id=sede_norte.id if sede_norte else None,
                 skills="hardware,software,redes,impresoras", carga_maxima=15),
         Usuario(username="tec_sur",    email="tec.sur@entidad.gob.pe",
                 nombre="Gladys",       apellido="Apaza Condori",
                 hashed_password=hash_pw("Tec2024*"),
                 rol=RolUsuario.especialista, cargo="Técnico TI – Sede Sur",
-                area="Oficina de Sistemas", sede_id=sede_sur.id,
+                area="Oficina de Sistemas", sede_id=sede_sur.id if sede_sur else None,
                 skills="hardware,software,redes,impresoras", carga_maxima=15),
 
         # ── Usuarios finales ────────────────────────────────────────────────
@@ -161,37 +162,41 @@ def _usuarios(db):
                 nombre="María",        apellido="Sánchez López",
                 hashed_password=hash_pw("User2024*"),
                 rol=RolUsuario.usuario_final, cargo="Asistente Administrativo",
-                area="Administración", sede_id=sede_central.id),
+                area="Administración", sede_id=sede_central.id if sede_central else None),
         Usuario(username="ufin_cont",  email="ufin.cont@entidad.gob.pe",
                 nombre="Arturo",       apellido="Flores Muñoz",
                 hashed_password=hash_pw("User2024*"),
                 rol=RolUsuario.usuario_final, cargo="Contador",
-                area="Contabilidad", sede_id=sede_central.id),
+                area="Contabilidad", sede_id=sede_central.id if sede_central else None),
         Usuario(username="ufin_log",   email="ufin.log@entidad.gob.pe",
                 nombre="Sandra",       apellido="Cano Peña",
                 hashed_password=hash_pw("User2024*"),
                 rol=RolUsuario.usuario_final, cargo="Especialista en Logística",
-                area="Logística", sede_id=sede_central.id),
+                area="Logística", sede_id=sede_central.id if sede_central else None),
 
         # ── Usuarios externos (sedes remotas) ───────────────────────────────
         Usuario(username="uext_norte", email="uext.norte@entidad.gob.pe",
                 nombre="Raúl",         apellido="Gutiérrez Arce",
                 hashed_password=hash_pw("Ext2024*"),
                 rol=RolUsuario.usuario_externo, cargo="Coordinador Regional",
-                area="Coordinación Norte", sede_id=sede_norte.id),
+                area="Coordinación Norte", sede_id=sede_norte.id if sede_norte else None),
         Usuario(username="uext_sur",   email="uext.sur@entidad.gob.pe",
                 nombre="Elena",        apellido="Mamani Ticona",
                 hashed_password=hash_pw("Ext2024*"),
                 rol=RolUsuario.usuario_externo, cargo="Coordinador Regional",
-                area="Coordinación Sur", sede_id=sede_sur.id),
+                area="Coordinación Sur", sede_id=sede_sur.id if sede_sur else None),
         Usuario(username="uext_oriente", email="uext.oriente@entidad.gob.pe",
                 nombre="César",        apellido="Ruiz Panduro",
                 hashed_password=hash_pw("Ext2024*"),
                 rol=RolUsuario.usuario_externo, cargo="Coordinador Regional",
-                area="Coordinación Oriente", sede_id=sede_oriente.id),
+                area="Coordinación Oriente", sede_id=sede_oriente.id if sede_oriente else None),
     ]
-    db.add_all(usuarios); db.flush()
-    print(f"  ✔ Usuarios: {len(usuarios)}")
+    nuevos = [u for u in candidatos if u.username not in existentes]
+    if not nuevos:
+        print("  — Usuarios ya existen")
+        return
+    db.add_all(nuevos); db.flush()
+    print(f"  ✔ Usuarios nuevos: {len(nuevos)}")
 
 
 def _articulos_kb(db):
