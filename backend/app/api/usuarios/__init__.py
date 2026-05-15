@@ -1,9 +1,14 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+import secrets
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from jose import JWTError
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from typing import List, Optional
 from datetime import datetime
+
+limiter = Limiter(key_func=get_remote_address)
 
 from app.core.database import get_db
 from app.core.security import (
@@ -22,7 +27,9 @@ router = APIRouter()
 
 # ── LOGIN ─────────────────────────────────────────────────────────────────────
 @router.post("/login", response_model=TokenResponse)
+@limiter.limit("5/minute")
 def login(
+    request: Request,
     form: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db)
 ):
@@ -50,7 +57,9 @@ def login(
 
 # ── REFRESH TOKEN ─────────────────────────────────────────────────────────────
 @router.post("/refresh", response_model=TokenResponse)
+@limiter.limit("10/minute")
 def refresh_token(
+    request: Request,
     body: RefreshTokenRequest,
     db: Session = Depends(get_db)
 ):
@@ -196,7 +205,7 @@ def resetear_password(
     user = db.query(Usuario).filter(Usuario.id == usuario_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
-    nueva = f"{user.username.capitalize()}2024*"
+    nueva = secrets.token_urlsafe(10) + "!1"
     user.hashed_password = get_password_hash(nueva)
     db.commit()
     return {"message": f"Contraseña reseteada. Nueva contraseña temporal: {nueva}"}

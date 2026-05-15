@@ -9,6 +9,7 @@ from app.schemas.compra import (
     SolicitudCreate, SolicitudUpdate, SolicitudRead, DashboardCompras
 )
 from app.services.compra_service import CompraService
+from app.services.notificacion_service import NotificacionService
 
 router = APIRouter()
 ROLES_TI = [RolUsuario.jefe, RolUsuario.especialista, RolUsuario.mesa_ayuda]
@@ -79,7 +80,14 @@ def aprobar(
         estado=EstadoSolicitud.aprobada,
         valor_aprobado=valor_aprobado,
     )
-    return CompraService(db).actualizar(sid, data, current_user)
+    solicitud = CompraService(db).actualizar(sid, data, current_user)
+    try:
+        NotificacionService(db).solicitud_aprobada(
+            solicitud.numero, solicitud.solicitante_id
+        )
+    except Exception:
+        pass
+    return solicitud
 
 @router.post("/{sid}/rechazar", response_model=SolicitudRead)
 def rechazar(
@@ -92,4 +100,11 @@ def rechazar(
         estado=EstadoSolicitud.rechazada,
         motivo_rechazo=motivo,
     )
-    return CompraService(db).actualizar(sid, data, current_user)
+    solicitud = CompraService(db).actualizar(sid, data, current_user)
+    try:
+        NotificacionService(db).solicitud_rechazada(
+            solicitud.numero, solicitud.solicitante_id, motivo
+        )
+    except Exception:
+        pass
+    return solicitud
