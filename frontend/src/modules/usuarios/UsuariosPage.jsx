@@ -2,18 +2,21 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { AgGridReact } from 'ag-grid-react'
 import {
   Button, Space, Tag, Modal, Form, Input, Select, Switch,
-  Tooltip, Popconfirm, Typography, Row, Col, Card, Statistic,
-  message, Drawer, Divider, Badge
+  Tooltip, Popconfirm, Typography, message, Drawer, Divider,
+  Badge, Upload, Row, Col,
 } from 'antd'
 import {
-  PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined,
-  KeyOutlined, UserOutlined, TeamOutlined, SearchOutlined,
+  PlusOutlined, EditOutlined, ReloadOutlined,
+  KeyOutlined, UserOutlined, TeamOutlined,
   CheckCircleOutlined, StopOutlined, ExportOutlined,
+  CameraOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { usuarioService, ROLES, TURNOS, getRolLabel, getRolColor } from '../../services/usuarioService'
+import { configuracionService } from '../../services/configuracionService'
 import { defaultGridOptions, AG_THEME_CLASS } from '../../utils/agGridConfig'
 import { useAuthStore } from '../../store/authStore'
+import KpiStrip from '../../components/common/KpiStrip'
 
 const { Title, Text } = Typography
 const { Option } = Select
@@ -36,12 +39,15 @@ const FechaRenderer = ({ value }) =>
 const NombreRenderer = ({ data }) => (
   <Space>
     <div style={{
-      width: 28, height: 28, borderRadius: '50%',
-      background: '#1677ff', color: '#fff',
+      width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
+      background: '#1677ff', color: '#fff', overflow: 'hidden',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontSize: 11, fontWeight: 600, flexShrink: 0,
+      fontSize: 11, fontWeight: 600,
     }}>
-      {data?.nombre?.[0]}{data?.apellido?.[0]}
+      {data?.foto_url
+        ? <img src={data.foto_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        : <>{data?.nombre?.[0]}{data?.apellido?.[0]}</>
+      }
     </div>
     <div>
       <div style={{ fontWeight: 500, fontSize: 13 }}>{data?.nombre} {data?.apellido}</div>
@@ -49,6 +55,66 @@ const NombreRenderer = ({ data }) => (
     </div>
   </Space>
 )
+
+// ── COMPONENTE FOTO UPLOAD ────────────────────────────────────────────────────
+function FotoUpload({ value, onChange }) {
+  const [uploading, setUploading] = useState(false)
+
+  const handleUpload = async ({ file, onSuccess, onError }) => {
+    setUploading(true)
+    try {
+      const { data } = await configuracionService.subirArchivo(file)
+      onChange(data.url)
+      onSuccess(data)
+      message.success('Foto subida')
+    } catch (err) {
+      onError(err)
+      message.error('Error al subir la foto')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  return (
+    <Upload
+      accept="image/*"
+      showUploadList={false}
+      customRequest={handleUpload}
+      beforeUpload={(file) => {
+        if (!file.type.startsWith('image/')) { message.error('Solo imágenes'); return false }
+        if (file.size > 2 * 1024 * 1024) { message.error('Máx. 2 MB'); return false }
+        return true
+      }}
+    >
+      <div style={{
+        width: 80, height: 80, borderRadius: '50%', cursor: 'pointer',
+        background: value ? 'transparent' : '#f0f5ff',
+        border: '2px dashed #1677ff', overflow: 'hidden',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        position: 'relative',
+      }}>
+        {value
+          ? <img src={value} alt="foto" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          : <Space direction="vertical" align="center" size={0}>
+              <CameraOutlined style={{ fontSize: 20, color: '#1677ff' }} />
+              <Text style={{ fontSize: 10, color: '#1677ff' }}>
+                {uploading ? 'Subiendo...' : 'Foto'}
+              </Text>
+            </Space>
+        }
+        {value && (
+          <div style={{
+            position: 'absolute', bottom: 0, width: '100%',
+            background: 'rgba(0,0,0,0.45)', textAlign: 'center',
+            padding: '2px 0',
+          }}>
+            <CameraOutlined style={{ color: '#fff', fontSize: 12 }} />
+          </div>
+        )}
+      </div>
+    </Upload>
+  )
+}
 
 // ── COMPONENTE PRINCIPAL ──────────────────────────────────────────────────────
 export default function UsuariosPage() {
@@ -59,9 +125,10 @@ export default function UsuariosPage() {
   const [usuarios, setUsuarios]         = useState([])
   const [loading, setLoading]           = useState(false)
   const [drawerOpen, setDrawerOpen]     = useState(false)
-  const [editando, setEditando]         = useState(null)   // null = nuevo
+  const [editando, setEditando]         = useState(null)
   const [filtroActivo, setFiltroActivo] = useState(true)
   const [stats, setStats]               = useState({})
+  const [fotoUrl, setFotoUrl]           = useState(null)
   const [form] = Form.useForm()
 
   // ── Carga de datos ──────────────────────────────────────────────────────────
@@ -70,7 +137,6 @@ export default function UsuariosPage() {
     try {
       const { data } = await usuarioService.listar({ activo: filtroActivo, limit: 200 })
       setUsuarios(data)
-      // Calcular stats
       const s = { total: data.length }
       ROLES.forEach(r => { s[r.value] = data.filter(u => u.rol === r.value).length })
       setStats(s)
@@ -83,6 +149,7 @@ export default function UsuariosPage() {
   // ── Abrir drawer ────────────────────────────────────────────────────────────
   const abrirNuevo = () => {
     setEditando(null)
+    setFotoUrl(null)
     form.resetFields()
     form.setFieldsValue({ activo: true, carga_maxima: 10 })
     setDrawerOpen(true)
@@ -90,22 +157,21 @@ export default function UsuariosPage() {
 
   const abrirEditar = (usuario) => {
     setEditando(usuario)
-    form.setFieldsValue({
-      ...usuario,
-      sede_id: usuario.sede_id,
-    })
+    setFotoUrl(usuario.foto_url || null)
+    form.setFieldsValue({ ...usuario })
     setDrawerOpen(true)
   }
 
   // ── Guardar ─────────────────────────────────────────────────────────────────
   const guardar = async (values) => {
     try {
+      const payload = { ...values, foto_url: fotoUrl }
       if (editando) {
-        const { password, ...resto } = values
+        const { password, ...resto } = payload
         await usuarioService.actualizar(editando.id, resto)
         message.success('Usuario actualizado')
       } else {
-        await usuarioService.crear(values)
+        await usuarioService.crear(payload)
         message.success('Usuario creado correctamente')
       }
       setDrawerOpen(false)
@@ -134,8 +200,7 @@ export default function UsuariosPage() {
             <p>La contraseña temporal de <strong>{username}</strong> es:</p>
             <div style={{
               background: '#f5f5f5', padding: '8px 12px',
-              borderRadius: 6, fontFamily: 'monospace',
-              fontSize: 16, marginTop: 8,
+              borderRadius: 6, fontFamily: 'monospace', fontSize: 16, marginTop: 8,
             }}>
               {data.message.split(': ')[1]}
             </div>
@@ -148,15 +213,23 @@ export default function UsuariosPage() {
     } catch { message.error('Error al resetear contraseña') }
   }
 
-  // ── Exportar CSV ────────────────────────────────────────────────────────────
   const exportarCSV = () => {
     gridRef.current?.api.exportDataAsCsv({
       fileName: `usuarios_${dayjs().format('YYYYMMDD')}.csv`,
-      columnKeys: ['nombre_completo', 'username', 'email', 'rol', 'area', 'activo'],
     })
   }
 
-  // ── Definición de columnas AG Grid ──────────────────────────────────────────
+  // ── KPI items ───────────────────────────────────────────────────────────────
+  const kpiItems = [
+    { label: 'Total usuarios',   value: stats.total              || 0, color: '#64748b' },
+    { label: 'Jefes',            value: stats.jefe               || 0, color: '#7c3aed' },
+    { label: 'Especialistas',    value: stats.especialista        || 0, color: '#0e7490' },
+    { label: 'Mesa de ayuda',    value: stats.mesa_ayuda          || 0, color: '#7e22ce' },
+    { label: 'Alta dirección',   value: stats.alta_direccion      || 0, color: '#b91c1c' },
+    { label: 'Usuarios finales', value: stats.usuario_final       || 0, color: '#475569' },
+  ]
+
+  // ── Columnas AG Grid ────────────────────────────────────────────────────────
   const columnDefs = useMemo(() => [
     {
       headerName: '', width: 44, checkboxSelection: true,
@@ -190,7 +263,6 @@ export default function UsuariosPage() {
       headerName: 'Estado', field: 'activo', width: 110,
       filter: 'agSetColumnFilter',
       cellRenderer: EstadoRenderer,
-      filterParams: { values: [true, false] },
     },
     {
       headerName: 'Último acceso', field: 'ultimo_acceso', width: 160,
@@ -204,18 +276,12 @@ export default function UsuariosPage() {
       cellRenderer: ({ data }) => (
         <Space size={4}>
           <Tooltip title="Editar">
-            <Button
-              size="small" icon={<EditOutlined />} type="text"
-              onClick={() => abrirEditar(data)}
-              disabled={!esJefe}
-            />
+            <Button size="small" icon={<EditOutlined />} type="text"
+              onClick={() => abrirEditar(data)} disabled={!esJefe} />
           </Tooltip>
           <Tooltip title="Resetear contraseña">
-            <Button
-              size="small" icon={<KeyOutlined />} type="text"
-              onClick={() => resetearPw(data.id, data.username)}
-              disabled={!esJefe}
-            />
+            <Button size="small" icon={<KeyOutlined />} type="text"
+              onClick={() => resetearPw(data.id, data.username)} disabled={!esJefe} />
           </Tooltip>
           <Tooltip title={data.activo ? 'Desactivar' : 'Activar'}>
             <Popconfirm
@@ -226,8 +292,7 @@ export default function UsuariosPage() {
               <Button
                 size="small"
                 icon={data.activo ? <StopOutlined /> : <CheckCircleOutlined />}
-                type="text"
-                danger={data.activo}
+                type="text" danger={data.activo}
                 disabled={!esJefe || data.id === usuarioActual?.id}
               />
             </Popconfirm>
@@ -238,16 +303,13 @@ export default function UsuariosPage() {
   ], [esJefe, usuarioActual])
 
   const defaultColDef = useMemo(() => ({
-    sortable:    true,
-    resizable:   true,
-    filter:      true,
-    suppressMovable: false,
+    sortable: true, resizable: true, filter: true,
   }), [])
 
   return (
     <div>
       {/* ── HEADER ─────────────────────────────────────────────────────────── */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <Title level={4} style={{ margin: 0 }}>
           <TeamOutlined style={{ marginRight: 8 }} />
           Gestión de usuarios
@@ -273,25 +335,8 @@ export default function UsuariosPage() {
         </Space>
       </div>
 
-      {/* ── STATS CARDS ────────────────────────────────────────────────────── */}
-      <Row gutter={12} style={{ marginBottom: 16 }}>
-        <Col span={4}>
-          <Card size="small" style={{ textAlign: 'center' }}>
-            <Statistic title="Total" value={stats.total || 0} prefix={<UserOutlined />} />
-          </Card>
-        </Col>
-        {ROLES.slice(0, 5).map(r => (
-          <Col span={4} key={r.value}>
-            <Card size="small" style={{ textAlign: 'center' }}>
-              <Statistic
-                title={r.label}
-                value={stats[r.value] || 0}
-                valueStyle={{ color: r.value === 'alta_direccion' ? '#cf1322' : undefined }}
-              />
-            </Card>
-          </Col>
-        ))}
-      </Row>
+      {/* ── KPI STRIP ──────────────────────────────────────────────────────── */}
+      <KpiStrip items={kpiItems} />
 
       {/* ── AG GRID ────────────────────────────────────────────────────────── */}
       <div className={`${AG_THEME_CLASS} grid-container`}>
@@ -304,7 +349,6 @@ export default function UsuariosPage() {
           loading={loading}
           rowHeight={52}
           headerHeight={40}
-
           getRowId={(p) => String(p.data.id)}
           onGridReady={(p) => p.api.sizeColumnsToFit()}
           onFirstDataRendered={(p) => p.api.sizeColumnsToFit()}
@@ -316,7 +360,7 @@ export default function UsuariosPage() {
         title={editando ? `Editar: ${editando.nombre} ${editando.apellido}` : 'Nuevo usuario'}
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
-        width={560}
+        width={580}
         extra={
           <Button type="primary" onClick={() => form.submit()}>
             {editando ? 'Guardar cambios' : 'Crear usuario'}
@@ -324,6 +368,14 @@ export default function UsuariosPage() {
         }
       >
         <Form form={form} layout="vertical" onFinish={guardar}>
+
+          {/* Foto */}
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+            <Form.Item name="foto_url" noStyle>
+              <FotoUpload value={fotoUrl} onChange={setFotoUrl} />
+            </Form.Item>
+          </div>
+
           <Divider orientation="left" plain>Datos personales</Divider>
           <Row gutter={12}>
             <Col span={12}>

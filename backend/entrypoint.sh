@@ -26,7 +26,7 @@ echo "[entrypoint] Ejecutando migraciones..."
 alembic upgrade head
 
 echo "[entrypoint] Creando usuarios iniciales..."
-python app/core/init_db.py
+python -m app.core.init_db
 
 echo "[entrypoint] Iniciando API..."
 exec uvicorn app.main:app --host 0.0.0.0 --port 8000

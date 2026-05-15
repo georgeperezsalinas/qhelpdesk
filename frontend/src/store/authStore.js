@@ -35,6 +35,8 @@ export const useAuthStore = create(
         expiresAt: Date.now() + expiresIn * 1000,
         usuario: state.usuario,
       })),
+
+      setUsuario: (usuario) => set({ usuario }),
     }),
     { name: 'qhelpdesk-auth' }
   )

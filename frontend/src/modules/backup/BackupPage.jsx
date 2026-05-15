@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo, forwardRef, useImperativeHandle } from 'react'
 import { AgGridReact } from 'ag-grid-react'
 import {
   Button, Space, Tag, Badge, Card, Statistic, Row, Col,
@@ -64,7 +64,7 @@ const UltimoEstadoRenderer = ({ data }) => {
 }
 
 // ── TAB POLÍTICAS ──────────────────────────────────────────────────────────────
-function TabPoliticas({ tecnicos, onSeleccionarPolitica }) {
+const TabPoliticas = forwardRef(function TabPoliticas({ tecnicos, onSeleccionarPolitica }, ref) {
   const gridRef = useRef()
   const { usuario } = useAuthStore()
   const esJefe = ['jefe', 'especialista'].includes(usuario?.rol)
@@ -92,6 +92,8 @@ function TabPoliticas({ tecnicos, onSeleccionarPolitica }) {
     form.setFieldsValue({ retencion_dias: 30, tipo: 'full', frecuencia: 'diario' })
     setDrawerForm(true)
   }
+
+  useImperativeHandle(ref, () => ({ reload: cargar, openNew: abrirNuevo }), [cargar])
 
   const abrirEditar = (p) => {
     setEditando(p)
@@ -191,17 +193,6 @@ function TabPoliticas({ tecnicos, onSeleccionarPolitica }) {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
-        <Space>
-          <Button icon={<ReloadOutlined />} onClick={cargar} loading={loading} />
-          {esJefe && (
-            <Button type="primary" icon={<PlusOutlined />} onClick={abrirNuevo}>
-              Nueva política
-            </Button>
-          )}
-        </Space>
-      </div>
-
       <div className={`${AG_THEME_CLASS} grid-container`}>
         <AgGridReact
           ref={gridRef} rowData={politicas} columnDefs={columnDefs}
@@ -277,10 +268,10 @@ function TabPoliticas({ tecnicos, onSeleccionarPolitica }) {
       </Drawer>
     </div>
   )
-}
+})
 
 // ── TAB EJECUCIONES ────────────────────────────────────────────────────────────
-function TabEjecuciones({ politicaFiltro }) {
+const TabEjecuciones = forwardRef(function TabEjecuciones({ politicaFiltro }, ref) {
   const gridRef = useRef()
   const { usuario } = useAuthStore()
   const esJefe = ['jefe', 'especialista'].includes(usuario?.rol)
@@ -319,6 +310,8 @@ function TabEjecuciones({ politicaFiltro }) {
   const exportar = () => gridRef.current?.api.exportDataAsCsv({
     fileName: `ejecuciones_backup_${dayjs().format('YYYYMMDD')}.csv`,
   })
+
+  useImperativeHandle(ref, () => ({ reload: cargar, exportar }), [cargar])
 
   const columnDefs = useMemo(() => [
     { headerName: 'Estado', field: 'estado', width: 130,
@@ -365,13 +358,6 @@ function TabEjecuciones({ politicaFiltro }) {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
-        <Space>
-          <Button icon={<ReloadOutlined />} onClick={cargar} loading={loading} />
-          <Button icon={<ExportOutlined />} onClick={exportar}>CSV</Button>
-        </Space>
-      </div>
-
       {politicaFiltro && (
         <Alert type="info" showIcon style={{ marginBottom: 12 }}
           message="Filtrando por política seleccionada"
@@ -425,14 +411,22 @@ function TabEjecuciones({ politicaFiltro }) {
       </Modal>
     </div>
   )
-}
+})
 
 // ── PÁGINA PRINCIPAL ──────────────────────────────────────────────────────────
 export default function BackupPage() {
+  const { usuario } = useAuthStore()
+  const esJefe = ['jefe', 'especialista'].includes(usuario?.rol)
+
   const [stats,          setStats]          = useState({})
   const [tecnicos,       setTecnicos]       = useState([])
   const [politicaFiltro, setPoliticaFiltro] = useState(null)
   const [tabActiva,      setTabActiva]      = useState('politicas')
+  const [loading,        setLoading]        = useState(false)
+
+  const politicasRef   = useRef()
+  const ejecucionesRef = useRef()
+  const activeRef = tabActiva === 'politicas' ? politicasRef : ejecucionesRef
 
   useEffect(() => {
     backupService.dashboard().then(({ data }) => setStats(data))
@@ -444,11 +438,15 @@ export default function BackupPage() {
     setTabActiva('ejecuciones')
   }
 
+  const handleReload = () => { activeRef.current?.reload(); setLoading(true); setTimeout(() => setLoading(false), 800) }
+  const handleExport = () => activeRef.current?.exportar?.()
+  const handleNew    = () => activeRef.current?.openNew?.()
+
   const tabs = [
     {
       key: 'politicas',
       label: <span><CloudServerOutlined /> Políticas ({stats.total_politicas || 0})</span>,
-      children: <TabPoliticas tecnicos={tecnicos} onSeleccionarPolitica={verEjecucionesDe} />,
+      children: <TabPoliticas ref={politicasRef} tecnicos={tecnicos} onSeleccionarPolitica={verEjecucionesDe} />,
     },
     {
       key: 'ejecuciones',
@@ -462,15 +460,31 @@ export default function BackupPage() {
           )}
         </span>
       ),
-      children: <TabEjecuciones politicaFiltro={politicaFiltro} />,
+      children: <TabEjecuciones ref={ejecucionesRef} politicaFiltro={politicaFiltro} />,
     },
   ]
 
   return (
     <div>
-      <Title level={4} style={{ marginBottom: 16 }}>
-        <CloudServerOutlined style={{ marginRight: 8 }} />Backup y continuidad
-      </Title>
+      {/* Header con botones al mismo nivel que el título */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <Title level={4} style={{ margin: 0 }}>
+          <CloudServerOutlined style={{ marginRight: 8 }} />Backup y continuidad
+        </Title>
+        <Space>
+          <Button icon={<ReloadOutlined />} onClick={handleReload} loading={loading}>
+            Actualizar
+          </Button>
+          <Button icon={<ExportOutlined />} onClick={handleExport}>
+            Exportar CSV
+          </Button>
+          {esJefe && tabActiva === 'politicas' && (
+            <Button type="primary" icon={<PlusOutlined />} onClick={handleNew}>
+              Nueva política
+            </Button>
+          )}
+        </Space>
+      </div>
 
       {/* Alertas */}
       {stats.fallidas_semana > 0 && (
@@ -482,7 +496,7 @@ export default function BackupPage() {
           message={`${stats.sin_verificar} backup(s) exitoso(s) sin verificar`} />
       )}
 
-      {/* Stats */}
+      {/* KPI Strip */}
       <KpiStrip items={[
         { label: 'Políticas activas', value: stats.politicas_activas,  color: '#64748b'  },
         { label: 'Ejecuciones hoy',   value: stats.ejecuciones_hoy,    color: '#64748b'  },
@@ -497,7 +511,7 @@ export default function BackupPage() {
 
       <Tabs
         activeKey={tabActiva}
-        onChange={k => { setTabActiva(k); if (k === 'ejecuciones') setPoliticaFiltro(null) }}
+        onChange={k => { setTabActiva(k); if (k !== 'ejecuciones') setPoliticaFiltro(null) }}
         items={tabs}
       />
     </div>

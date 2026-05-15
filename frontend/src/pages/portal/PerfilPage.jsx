@@ -1,7 +1,8 @@
-import { Card, Form, Input, Button, Divider, Row, Col, Avatar, Tag, Typography, message } from 'antd'
-import { UserOutlined, LockOutlined, SaveOutlined } from '@ant-design/icons'
+import { Card, Form, Input, Button, Divider, Row, Col, Tag, Typography, message, Upload, Spin } from 'antd'
+import { UserOutlined, LockOutlined, SaveOutlined, CameraOutlined } from '@ant-design/icons'
 import { useState } from 'react'
 import { useAuthStore } from '../../store/authStore'
+import { configuracionService } from '../../services/configuracionService'
 import api from '../../services/api'
 
 const { Title, Text } = Typography
@@ -16,15 +17,36 @@ const ROL_LABELS = {
 }
 
 export default function PerfilPage() {
-  const { usuario } = useAuthStore()
+  const { usuario, setUsuario } = useAuthStore()
   const [loadingPerfil, setLoadingPerfil] = useState(false)
-  const [loadingPw, setLoadingPw] = useState(false)
+  const [loadingPw,     setLoadingPw]     = useState(false)
+  const [uploading,     setUploading]     = useState(false)
+  const [fotoUrl,       setFotoUrl]       = useState(usuario?.foto_url || null)
   const [formPw] = Form.useForm()
+
+  const subirFoto = async ({ file, onSuccess, onError }) => {
+    setUploading(true)
+    try {
+      const { data } = await configuracionService.subirArchivo(file)
+      setFotoUrl(data.url)
+      onSuccess(data)
+      // Guardar foto inmediatamente en el perfil
+      const { data: updated } = await api.patch('/usuarios/me', { foto_url: data.url })
+      setUsuario(updated)
+      message.success('Foto actualizada')
+    } catch (err) {
+      onError(err)
+      message.error('Error al subir la foto')
+    } finally {
+      setUploading(false)
+    }
+  }
 
   const guardarPerfil = async (values) => {
     setLoadingPerfil(true)
     try {
-      await api.patch('/usuarios/me', values)
+      const { data: updated } = await api.patch('/usuarios/me', { ...values, foto_url: fotoUrl })
+      setUsuario(updated)
       message.success('Perfil actualizado correctamente')
     } catch {
       message.error('Error al actualizar el perfil')
@@ -52,9 +74,46 @@ export default function PerfilPage() {
       <Row gutter={24}>
         <Col xs={24} md={8}>
           <Card style={{ textAlign: 'center' }}>
-            <Avatar size={80} style={{ background: '#1677ff', fontSize: 28, marginBottom: 12 }}>
-              {usuario?.nombre?.[0]}{usuario?.apellido?.[0]}
-            </Avatar>
+
+            {/* Avatar con foto o iniciales + botón de cámara */}
+            <Upload
+              accept="image/*"
+              showUploadList={false}
+              customRequest={subirFoto}
+              beforeUpload={(file) => {
+                if (!file.type.startsWith('image/')) { message.error('Solo imágenes'); return false }
+                if (file.size > 2 * 1024 * 1024)    { message.error('Máx. 2 MB');     return false }
+                return true
+              }}
+            >
+              <Spin spinning={uploading}>
+                <div style={{ position: 'relative', display: 'inline-block', marginBottom: 12, cursor: 'pointer' }}>
+                  <div style={{
+                    width: 88, height: 88, borderRadius: '50%', overflow: 'hidden',
+                    background: fotoUrl ? 'transparent' : '#1677ff',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 28, color: '#fff', fontWeight: 700,
+                    border: '3px solid #e2e8f0',
+                  }}>
+                    {fotoUrl
+                      ? <img src={fotoUrl} alt="foto" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      : <>{usuario?.nombre?.[0]}{usuario?.apellido?.[0]}</>
+                    }
+                  </div>
+                  <div style={{
+                    position: 'absolute', bottom: 0, right: 0,
+                    width: 26, height: 26, borderRadius: '50%',
+                    background: '#1677ff', border: '2px solid #fff',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    <CameraOutlined style={{ fontSize: 12, color: '#fff' }} />
+                  </div>
+                </div>
+              </Spin>
+            </Upload>
+
+            <div style={{ color: '#888', fontSize: 11, marginBottom: 8 }}>Haz clic para cambiar foto</div>
+
             <div style={{ fontWeight: 600, fontSize: 16 }}>
               {usuario?.nombre} {usuario?.apellido}
             </div>

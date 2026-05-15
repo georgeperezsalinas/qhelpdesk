@@ -1,15 +1,15 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo, forwardRef, useImperativeHandle } from 'react'
 import { AgGridReact } from 'ag-grid-react'
 import {
-  Button, Space, Tag, Badge, Tabs, Card, Statistic, Row, Col,
-  Drawer, Form, Input, Select, DatePicker, InputNumber,
-  Tooltip, Popconfirm, Modal, Timeline, Typography,
-  message, Alert, Progress, Divider,
+  Button, Space, Tag, Badge, Tabs, Drawer, Form, Input, Select, DatePicker, InputNumber,
+  Tooltip, Popconfirm, Modal, Timeline, Typography, message, Alert, Progress, Divider,
+  Upload, Row, Col,
 } from 'antd'
 import {
   PlusOutlined, ReloadOutlined, EditOutlined, ExportOutlined,
   SwapOutlined, DeleteOutlined, HistoryOutlined, WarningOutlined,
   LaptopOutlined, FileTextOutlined, SafetyOutlined, SearchOutlined,
+  CameraOutlined,
 } from '@ant-design/icons'
 import KpiStrip from '../../components/common/KpiStrip'
 import dayjs from 'dayjs'
@@ -17,6 +17,7 @@ import {
   inventarioService, TIPOS_EQUIPO, ESTADOS_EQUIPO, TIPOS_LICENCIA,
   getTipoEquipo, getEstadoEquipo, formatCurrency,
 } from '../../services/inventarioService'
+import { configuracionService } from '../../services/configuracionService'
 import { usuarioService } from '../../services/usuarioService'
 import { defaultGridOptions, AG_THEME_CLASS } from '../../utils/agGridConfig'
 import { useAuthStore } from '../../store/authStore'
@@ -60,13 +61,14 @@ const LicenciaVencimientoRenderer = ({ data }) => {
   const { estado_vencimiento, dias_para_vencer, fecha_vencimiento } = data || {}
   if (!fecha_vencimiento) return <Tag>Sin vencimiento</Tag>
   const colores = { vencida: 'red', critico: 'red', urgente: 'orange', alerta: 'gold', vigente: 'green' }
-  const labels  = { vencida: 'Vencida', critico: `${dias_para_vencer}d`, urgente: `${dias_para_vencer}d`, alerta: `${dias_para_vencer}d`, vigente: dayjs(fecha_vencimiento).format('DD/MM/YY') }
+  const labels  = { vencida: 'Vencida', critico: `${dias_para_vencer}d`, urgente: `${dias_para_vencer}d`,
+                    alerta: `${dias_para_vencer}d`, vigente: dayjs(fecha_vencimiento).format('DD/MM/YY') }
   return <Tag color={colores[estado_vencimiento]}>{labels[estado_vencimiento]}</Tag>
 }
 
 const StockRenderer = ({ data }) => {
   if (!data) return null
-  const { cantidad_usada, cantidad_total, disponibles } = data
+  const { cantidad_usada, cantidad_total } = data
   const pct = Math.round((cantidad_usada / cantidad_total) * 100)
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -78,32 +80,87 @@ const StockRenderer = ({ data }) => {
   )
 }
 
-// ── TAB EQUIPOS ───────────────────────────────────────────────────────────────
-function TabEquipos({ usuarios, sedes }) {
+// ── FOTO UPLOAD INLINE ────────────────────────────────────────────────────────
+function FotoEquipoUpload({ value, onChange }) {
+  const [uploading, setUploading] = useState(false)
+
+  const handleUpload = async ({ file, onSuccess, onError }) => {
+    setUploading(true)
+    try {
+      const { data } = await configuracionService.subirArchivo(file)
+      onChange(data.url)
+      onSuccess(data)
+      message.success('Foto subida')
+    } catch (err) {
+      onError(err)
+      message.error('Error al subir la foto')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  return (
+    <Upload
+      accept="image/*"
+      showUploadList={false}
+      customRequest={handleUpload}
+      beforeUpload={(file) => {
+        if (!file.type.startsWith('image/')) { message.error('Solo imágenes'); return false }
+        if (file.size > 5 * 1024 * 1024)    { message.error('Máx. 5 MB'); return false }
+        return true
+      }}
+    >
+      <div style={{
+        width: 80, height: 80, borderRadius: 8, cursor: 'pointer',
+        background: value ? 'transparent' : '#f8fafc',
+        border: '2px dashed #cbd5e1', overflow: 'hidden',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        position: 'relative',
+      }}>
+        {value
+          ? <img src={value} alt="foto equipo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          : <Space direction="vertical" align="center" size={0}>
+              <CameraOutlined style={{ fontSize: 20, color: '#94a3b8' }} />
+              <Text style={{ fontSize: 10, color: '#94a3b8' }}>
+                {uploading ? 'Subiendo...' : 'Foto (opcional)'}
+              </Text>
+            </Space>
+        }
+        {value && (
+          <div style={{
+            position: 'absolute', bottom: 0, width: '100%',
+            background: 'rgba(0,0,0,0.4)', textAlign: 'center', padding: '2px 0',
+          }}>
+            <CameraOutlined style={{ color: '#fff', fontSize: 11 }} />
+          </div>
+        )}
+      </div>
+    </Upload>
+  )
+}
+
+// ── TAB EQUIPOS (forwardRef) ──────────────────────────────────────────────────
+const TabEquipos = forwardRef(function TabEquipos({ usuarios, sedes }, ref) {
   const gridRef = useRef()
   const { usuario } = useAuthStore()
   const esJefe = ['jefe','especialista'].includes(usuario?.rol)
 
-  const [equipos,       setEquipos]      = useState([])
-  const [loading,       setLoading]      = useState(false)
-  const [stats,         setStats]        = useState({})
-  const [drawerForm,    setDrawerForm]   = useState(false)
-  const [drawerAsignar, setDrawerAsignar]= useState(false)
+  const [equipos,         setEquipos]       = useState([])
+  const [loading,         setLoading]       = useState(false)
+  const [drawerForm,      setDrawerForm]    = useState(false)
+  const [drawerAsignar,   setDrawerAsignar] = useState(false)
   const [drawerHistorial, setDrawerHistorial] = useState(false)
-  const [seleccionado,  setSeleccionado] = useState(null)
-  const [historial,     setHistorial]    = useState([])
+  const [seleccionado,    setSeleccionado]  = useState(null)
+  const [historial,       setHistorial]     = useState([])
+  const [fotoUrl,         setFotoUrl]       = useState(null)
   const [form]     = Form.useForm()
   const [formAsig] = Form.useForm()
 
   const cargar = useCallback(async () => {
     setLoading(true)
     try {
-      const [{ data: eqs }, { data: dash }] = await Promise.all([
-        inventarioService.listarEquipos({ limit: 500 }),
-        inventarioService.dashboard(),
-      ])
+      const { data: eqs } = await inventarioService.listarEquipos({ limit: 500 })
       setEquipos(eqs)
-      setStats(dash)
     } catch { message.error('Error al cargar equipos') }
     finally  { setLoading(false) }
   }, [])
@@ -112,12 +169,14 @@ function TabEquipos({ usuarios, sedes }) {
 
   const abrirNuevo = () => {
     setSeleccionado(null)
+    setFotoUrl(null)
     form.resetFields()
     setDrawerForm(true)
   }
 
   const abrirEditar = (eq) => {
     setSeleccionado(eq)
+    setFotoUrl(eq.foto_url || null)
     form.setFieldsValue({
       ...eq,
       fecha_compra:   eq.fecha_compra   ? dayjs(eq.fecha_compra)   : null,
@@ -125,6 +184,13 @@ function TabEquipos({ usuarios, sedes }) {
     })
     setDrawerForm(true)
   }
+
+  const exportar = () => gridRef.current?.api.exportDataAsCsv({
+    fileName: `inventario_equipos_${dayjs().format('YYYYMMDD')}.csv`,
+  })
+
+  // Exponer acciones al padre
+  useImperativeHandle(ref, () => ({ reload: cargar, exportar, openNew: abrirNuevo }), [cargar])
 
   const abrirAsignar = (eq) => {
     setSeleccionado(eq)
@@ -147,6 +213,7 @@ function TabEquipos({ usuarios, sedes }) {
   const guardar = async (values) => {
     const payload = {
       ...values,
+      foto_url:       fotoUrl,
       fecha_compra:   values.fecha_compra   ? values.fecha_compra.format('YYYY-MM-DD')   : null,
       garantia_hasta: values.garantia_hasta ? values.garantia_hasta.format('YYYY-MM-DD') : null,
     }
@@ -189,13 +256,14 @@ function TabEquipos({ usuarios, sedes }) {
     })
   }
 
-  const exportar = () => gridRef.current?.api.exportDataAsCsv({
-    fileName: `inventario_equipos_${dayjs().format('YYYYMMDD')}.csv`,
-  })
-
   const columnDefs = useMemo(() => [
     { headerName: '', width: 44, checkboxSelection: true, headerCheckboxSelection: true,
       pinned: 'left', suppressMenu: true, sortable: false, filter: false },
+    { headerName: '', field: 'foto_url', width: 52, pinned: 'left',
+      sortable: false, filter: false, suppressMenu: true,
+      cellRenderer: ({ value }) => value
+        ? <img src={value} alt="" style={{ width: 36, height: 36, objectFit: 'cover', borderRadius: 4, marginTop: 6 }} />
+        : null },
     { headerName: 'Código', field: 'codigo_inventario', width: 140, pinned: 'left',
       filter: 'agTextColumnFilter' },
     { headerName: 'Tipo', field: 'tipo', width: 140,
@@ -226,11 +294,9 @@ function TabEquipos({ usuarios, sedes }) {
       filter: 'agNumberColumnFilter',
       valueFormatter: p => p.value ? `${p.value} GB` : '—' },
     { headerName: 'Valor compra', field: 'valor_compra', width: 130,
-      filter: 'agNumberColumnFilter',
-      valueFormatter: p => formatCurrency(p.value) },
+      filter: 'agNumberColumnFilter', valueFormatter: p => formatCurrency(p.value) },
     { headerName: 'Valor actual', field: 'valor_actual', width: 130,
-      filter: 'agNumberColumnFilter',
-      valueFormatter: p => formatCurrency(p.value) },
+      filter: 'agNumberColumnFilter', valueFormatter: p => formatCurrency(p.value) },
     { headerName: 'Depreciación', field: 'depreciacion_anual', width: 130,
       filter: false, cellRenderer: DepreciacionRenderer },
     { headerName: 'Garantía', field: 'garantia_hasta', width: 140,
@@ -241,12 +307,18 @@ function TabEquipos({ usuarios, sedes }) {
       sortable: false, filter: false, suppressMenu: true,
       cellRenderer: ({ data }) => (
         <Space size={2}>
-          <Tooltip title="Editar"><Button size="small" icon={<EditOutlined />} type="text"
-            onClick={() => abrirEditar(data)} disabled={!esJefe} /></Tooltip>
-          <Tooltip title="Asignar"><Button size="small" icon={<SwapOutlined />} type="text"
-            onClick={() => abrirAsignar(data)} disabled={!esJefe} /></Tooltip>
-          <Tooltip title="Historial"><Button size="small" icon={<HistoryOutlined />} type="text"
-            onClick={() => abrirHistorial(data)} /></Tooltip>
+          <Tooltip title="Editar">
+            <Button size="small" icon={<EditOutlined />} type="text"
+              onClick={() => abrirEditar(data)} disabled={!esJefe} />
+          </Tooltip>
+          <Tooltip title="Asignar">
+            <Button size="small" icon={<SwapOutlined />} type="text"
+              onClick={() => abrirAsignar(data)} disabled={!esJefe} />
+          </Tooltip>
+          <Tooltip title="Historial">
+            <Button size="small" icon={<HistoryOutlined />} type="text"
+              onClick={() => abrirHistorial(data)} />
+          </Tooltip>
           <Tooltip title="Dar de baja">
             <Popconfirm title="¿Confirmar baja?" onConfirm={() => darBaja(data)} disabled={!esJefe}>
               <Button size="small" icon={<DeleteOutlined />} type="text" danger disabled={!esJefe} />
@@ -256,48 +328,20 @@ function TabEquipos({ usuarios, sedes }) {
       )},
   ], [esJefe])
 
-  const defaultColDef = useMemo(() => ({
-  }), [])
-
   return (
     <div>
-      {/* Stats */}
-      <KpiStrip items={[
-        { label: 'Total equipos',    value: stats.total_equipos,       color: '#64748b'  },
-        { label: 'Activos',          value: stats.activos,             color: '#22c55e'  },
-        { label: 'En mantenimiento', value: stats.en_mantenimiento,    color: '#f59e0b'  },
-        { label: 'De baja',          value: stats.de_baja,             color: '#ef4444'  },
-        { label: 'Garantía x vencer',value: stats.garantia_por_vencer, color: '#f97316'  },
-        { label: 'Valor inventario', value: formatCurrency(stats.valor_total_inventario), color: '#1677ff' },
-        { label: 'Valor depreciado', value: formatCurrency(stats.valor_depreciado_total), color: '#7c3aed' },
-      ]} />
-
-      {/* Toolbar */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-        <Space>
-          <Button icon={<ReloadOutlined />} onClick={cargar} loading={loading} />
-          <Button icon={<ExportOutlined />} onClick={exportar}>Exportar CSV</Button>
-        </Space>
-        {esJefe && (
-          <Button type="primary" icon={<PlusOutlined />} onClick={abrirNuevo}>
-            Registrar equipo
-          </Button>
-        )}
-      </div>
-
-      {/* Toolbar búsqueda */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-        <Input prefix={<SearchOutlined style={{ color: '#94a3b8', fontSize: 13 }} />}
+      {/* Búsqueda rápida */}
+      <div style={{ marginBottom: 8 }}>
+        <Input prefix={<SearchOutlined style={{ color: '#94a3b8' }} />}
           placeholder="Buscar en todos los campos..." allowClear size="small"
           style={{ width: 280, fontSize: 12 }}
           onChange={(e) => gridRef.current?.api.setGridOption('quickFilterText', e.target.value)} />
       </div>
 
-      {/* Grid */}
       <div className={`${AG_THEME_CLASS} grid-container`}>
         <AgGridReact
           ref={gridRef} rowData={equipos} columnDefs={columnDefs}
-          defaultColDef={defaultColDef} {...defaultGridOptions}
+          defaultColDef={{}} {...defaultGridOptions}
           loading={loading} rowHeight={52} headerHeight={40}
           getRowId={p => String(p.data.id)}
           onGridReady={p => p.api.sizeColumnsToFit()}
@@ -308,12 +352,17 @@ function TabEquipos({ usuarios, sedes }) {
       {/* Drawer Crear/Editar */}
       <Drawer
         title={seleccionado ? `Editar: ${seleccionado.codigo_inventario}` : 'Registrar equipo'}
-        open={drawerForm} onClose={() => setDrawerForm(false)} width={620}
+        open={drawerForm} onClose={() => setDrawerForm(false)} width={640}
         extra={<Button type="primary" onClick={() => form.submit()}>
           {seleccionado ? 'Guardar cambios' : 'Registrar'}
         </Button>}
       >
         <Form form={form} layout="vertical" onFinish={guardar}>
+          {/* Foto */}
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+            <FotoEquipoUpload value={fotoUrl} onChange={setFotoUrl} />
+          </div>
+
           <Divider orientation="left" plain>Identificación</Divider>
           <Row gutter={12}>
             <Col span={12}>
@@ -513,10 +562,10 @@ function TabEquipos({ usuarios, sedes }) {
       </Drawer>
     </div>
   )
-}
+})
 
-// ── TAB LICENCIAS ─────────────────────────────────────────────────────────────
-function TabLicencias({ stats }) {
+// ── TAB LICENCIAS (forwardRef) ────────────────────────────────────────────────
+const TabLicencias = forwardRef(function TabLicencias({ stats }, ref) {
   const gridRef = useRef()
   const { usuario } = useAuthStore()
   const esJefe = ['jefe','especialista'].includes(usuario?.rol)
@@ -543,6 +592,8 @@ function TabLicencias({ stats }) {
     form.resetFields()
     setDrawerForm(true)
   }
+
+  useImperativeHandle(ref, () => ({ reload: cargar, openNew: abrirNuevo }), [cargar])
 
   const abrirEditar = (lic) => {
     setEditando(lic)
@@ -585,22 +636,17 @@ function TabLicencias({ stats }) {
           <div style={{ fontSize: 11, color: '#888' }}>{data?.fabricante} · v{data?.version || '—'}</div>
         </div>
       )},
-    { headerName: 'Tipo', field: 'tipo_licencia', width: 120,
-      filter: 'agSetColumnFilter' },
-    { headerName: 'Stock', field: 'cantidad_usada', width: 140,
-      filter: false, cellRenderer: StockRenderer },
-    { headerName: 'Disponibles', field: 'disponibles', width: 110,
-      filter: 'agNumberColumnFilter',
+    { headerName: 'Tipo', field: 'tipo_licencia', width: 120, filter: 'agSetColumnFilter' },
+    { headerName: 'Stock', field: 'cantidad_usada', width: 140, filter: false, cellRenderer: StockRenderer },
+    { headerName: 'Disponibles', field: 'disponibles', width: 110, filter: 'agNumberColumnFilter',
       cellRenderer: ({ value }) => (
         <Tag color={value <= 0 ? 'red' : value <= 2 ? 'orange' : 'green'}>{value}</Tag>
       )},
     { headerName: 'Vencimiento', field: 'fecha_vencimiento', width: 150,
       filter: 'agDateColumnFilter', cellRenderer: LicenciaVencimientoRenderer },
     { headerName: 'Valor', field: 'valor', width: 120,
-      filter: 'agNumberColumnFilter',
-      valueFormatter: p => formatCurrency(p.value) },
-    { headerName: 'Estado', field: 'activa', width: 100,
-      filter: 'agSetColumnFilter',
+      filter: 'agNumberColumnFilter', valueFormatter: p => formatCurrency(p.value) },
+    { headerName: 'Estado', field: 'activa', width: 100, filter: 'agSetColumnFilter',
       cellRenderer: ({ value }) => (
         <Badge status={value ? 'success' : 'error'} text={value ? 'Activa' : 'Inactiva'} />
       )},
@@ -614,12 +660,8 @@ function TabLicencias({ stats }) {
       )},
   ], [esJefe])
 
-  const defaultColDef = useMemo(() => ({
-  }), [])
-
   return (
     <div>
-      {/* Alertas */}
       {stats?.licencias_vencidas > 0 && (
         <Alert type="error" showIcon icon={<WarningOutlined />} style={{ marginBottom: 12 }}
           message={`${stats.licencias_vencidas} licencia(s) vencida(s) — requieren renovación urgente`} />
@@ -629,19 +671,10 @@ function TabLicencias({ stats }) {
           message={`${stats.licencias_por_vencer} licencia(s) vencen en los próximos 30 días`} />
       )}
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-        <Button icon={<ReloadOutlined />} onClick={cargar} loading={loading} />
-        {esJefe && (
-          <Button type="primary" icon={<PlusOutlined />} onClick={abrirNuevo}>
-            Registrar licencia
-          </Button>
-        )}
-      </div>
-
       <div className={`${AG_THEME_CLASS} grid-container`}>
         <AgGridReact
           ref={gridRef} rowData={licencias} columnDefs={columnDefs}
-          defaultColDef={defaultColDef} {...defaultGridOptions}
+          defaultColDef={{}} {...defaultGridOptions}
           loading={loading} rowHeight={50} headerHeight={40}
           getRowId={p => String(p.data.id)}
           getRowStyle={({ data }) => {
@@ -725,28 +758,40 @@ function TabLicencias({ stats }) {
       </Drawer>
     </div>
   )
-}
+})
 
 // ── PÁGINA PRINCIPAL ──────────────────────────────────────────────────────────
 export default function InventarioPage() {
-  const [usuarios, setUsuarios] = useState([])
-  const [sedes,    setSedes]    = useState([])
-  const [stats,    setStats]    = useState({})
+  const { usuario } = useAuthStore()
+  const esJefe = ['jefe','especialista'].includes(usuario?.rol)
+
+  const [usuarios,  setUsuarios]  = useState([])
+  const [sedes,     setSedes]     = useState([])
+  const [stats,     setStats]     = useState({})
+  const [activeTab, setActiveTab] = useState('equipos')
+  const [loading,   setLoading]   = useState(false)
+
+  const equiposRef   = useRef()
+  const licenciasRef = useRef()
+  const activeRef    = activeTab === 'equipos' ? equiposRef : licenciasRef
 
   useEffect(() => {
     usuarioService.listar({ limit: 200 }).then(({ data }) => setUsuarios(data))
-    inventarioService.dashboard().then(({ data }) => setStats(data))
-    // Cargar sedes desde el backend
+    inventarioService.dashboard().then(({ data }) => setStats(data)).catch(() => {})
     import('../../services/api').then(({ default: api }) =>
       api.get('/sedes/').then(({ data }) => setSedes(data)).catch(() => {})
     )
   }, [])
 
+  const handleReload = () => { activeRef.current?.reload(); setLoading(true); setTimeout(() => setLoading(false), 800) }
+  const handleExport = () => activeRef.current?.exportar?.()
+  const handleNew    = () => activeRef.current?.openNew()
+
   const tabs = [
     {
       key: 'equipos',
       label: <span><LaptopOutlined /> Equipos ({stats.total_equipos || 0})</span>,
-      children: <TabEquipos usuarios={usuarios} sedes={sedes} />,
+      children: <TabEquipos ref={equiposRef} usuarios={usuarios} sedes={sedes} />,
     },
     {
       key: 'licencias',
@@ -760,17 +805,47 @@ export default function InventarioPage() {
           )}
         </span>
       ),
-      children: <TabLicencias stats={stats} />,
+      children: <TabLicencias ref={licenciasRef} stats={stats} />,
     },
   ]
 
   return (
     <div>
-      <Title level={4} style={{ marginBottom: 16 }}>
-        <SafetyOutlined style={{ marginRight: 8 }} />
-        Inventario TI
-      </Title>
-      <Tabs items={tabs} defaultActiveKey="equipos" />
+      {/* Header con botones al mismo nivel que el título */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <Title level={4} style={{ margin: 0 }}>
+          <SafetyOutlined style={{ marginRight: 8 }} />
+          Inventario TI
+        </Title>
+        <Space>
+          <Button icon={<ReloadOutlined />} onClick={handleReload} loading={loading}>
+            Actualizar
+          </Button>
+          {activeTab === 'equipos' && (
+            <Button icon={<ExportOutlined />} onClick={handleExport}>
+              Exportar CSV
+            </Button>
+          )}
+          {esJefe && (
+            <Button type="primary" icon={<PlusOutlined />} onClick={handleNew}>
+              {activeTab === 'equipos' ? 'Registrar equipo' : 'Registrar licencia'}
+            </Button>
+          )}
+        </Space>
+      </div>
+
+      {/* KPI Strip */}
+      <KpiStrip items={[
+        { label: 'Total equipos',     value: stats.total_equipos,             color: '#64748b' },
+        { label: 'Activos',           value: stats.activos,                   color: '#22c55e' },
+        { label: 'En mantenimiento',  value: stats.en_mantenimiento,          color: '#f59e0b' },
+        { label: 'De baja',           value: stats.de_baja,                   color: '#ef4444' },
+        { label: 'Garantía x vencer', value: stats.garantia_por_vencer,       color: '#f97316' },
+        { label: 'Valor inventario',  value: formatCurrency(stats.valor_total_inventario), color: '#1677ff' },
+        { label: 'Valor depreciado',  value: formatCurrency(stats.valor_depreciado_total), color: '#7c3aed' },
+      ]} />
+
+      <Tabs items={tabs} activeKey={activeTab} onChange={setActiveTab} />
     </div>
   )
 }

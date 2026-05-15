@@ -16,6 +16,7 @@ import ComprasPage         from './modules/compras/ComprasPage'
 import InfraestructuraPage from './modules/infraestructura/InfraestructuraPage'
 import TelefoniaPage       from './modules/telefonia/TelefoniaPage'
 import ReportesPage        from './modules/reportes/ReportesPage'
+import ConfiguracionPage   from './modules/configuracion/ConfiguracionPage'
 import PortalInicio        from './portal/pages/PortalInicio'
 import NuevoTicket         from './portal/pages/NuevoTicket'
 import MisTickets          from './portal/pages/MisTickets'
@@ -102,6 +103,7 @@ export default function App() {
           <Route path="telefonia/*"        element={<TelefoniaPage />} />
           <Route path="reportes"           element={<ReportesPage />} />
           <Route path="perfil"             element={<PerfilPage />} />
+          <Route path="configuracion"      element={<ConfiguracionPage />} />
         </Route>
         <Route path="*" element={<RootRedirect />} />
       </Routes>

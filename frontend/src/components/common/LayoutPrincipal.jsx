@@ -7,9 +7,10 @@ import {
   DownOutlined, MenuOutlined, LeftOutlined,
   MenuFoldOutlined, MenuUnfoldOutlined,
 } from '@ant-design/icons'
-import { useAuthStore }     from '../../store/authStore'
-import { useNotifications } from '../../hooks/useNotifications'
-import NotificacionesBell   from './NotificacionesBell'
+import { useAuthStore }          from '../../store/authStore'
+import { useNotifications }      from '../../hooks/useNotifications'
+import NotificacionesBell        from './NotificacionesBell'
+import { configuracionService }  from '../../services/configuracionService'
 
 const { Content } = Layout
 
@@ -66,7 +67,8 @@ const MENU_GRUPOS = [
   {
     key: 'configuracion', label: 'Configuración',
     items: [
-      { key: '/perfil', icon: '⚙️', label: 'Mi perfil' },
+      { key: '/perfil',         icon: '👤', label: 'Mi perfil'           },
+      { key: '/configuracion',  icon: '⚙️', label: 'Config. aplicación'  },
     ],
   },
 ]
@@ -96,9 +98,11 @@ function useWindowWidth() {
 }
 
 /* ── SIDEBAR CONTENT (reutilizado en fijo + drawer) ─────────────────────── */
-function SidebarContent({ collapsed, onNavigate, selectedKey, usuario, onCollapse, isMobile }) {
+function SidebarContent({ collapsed, onNavigate, selectedKey, usuario, onCollapse, isMobile, logoUrl, appName }) {
   const permisos = PERMISOS[usuario?.rol] || []
   const gruposFiltrados = MENU_GRUPOS.filter(g => permisos.includes(g.key))
+  const nombreApp = appName || 'QHELP DESK'
+  const letraFallback = nombreApp.charAt(0).toUpperCase()
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -112,17 +116,22 @@ function SidebarContent({ collapsed, onNavigate, selectedKey, usuario, onCollaps
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: (!collapsed || isMobile) ? 8 : 0 }}>
           <div style={{
             width: 36, height: 36, borderRadius: 8, flexShrink: 0,
-            background: 'rgba(255,255,255,0.08)',
+            background: logoUrl ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.08)',
             border: '1px solid rgba(255,255,255,0.12)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 9, color: 'rgba(255,255,255,0.4)',
-            textAlign: 'center', lineHeight: 1.2,
+            fontSize: 13, color: '#fff', fontWeight: 700,
+            overflow: 'hidden',
           }}>
-            {collapsed && !isMobile ? 'Q' : 'LOGO'}
+            {logoUrl
+              ? <img src={logoUrl} alt="logo" style={{ width: '100%', height: '100%', objectFit: 'contain', padding: 3 }} />
+              : letraFallback
+            }
           </div>
           {(!collapsed || isMobile) && (
-            <div>
-              <div style={{ color: '#fff', fontWeight: 700, fontSize: 13, lineHeight: 1.2 }}>QHELP DESK</div>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ color: '#fff', fontWeight: 700, fontSize: 13, lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {nombreApp}
+              </div>
               <div style={{ color: 'rgba(255,255,255,0.35)', fontSize: 10 }}>GOV TECH PRO</div>
             </div>
           )}
@@ -221,7 +230,7 @@ function SidebarContent({ collapsed, onNavigate, selectedKey, usuario, onCollaps
           display: 'flex', alignItems: 'center',
           gap: 8, padding: '6px 8px', borderRadius: 8,
         }}>
-          <Avatar size={28} style={{
+          <Avatar size={28} src={usuario?.foto_url || undefined} style={{
             background: ROL_COLORS[usuario?.rol] || '#1d4ed8',
             fontSize: 11, fontWeight: 600, flexShrink: 0,
           }}>
@@ -258,6 +267,29 @@ export default function LayoutPrincipal() {
   const [collapsed,    setCollapsed]    = useState(false)
   // Mobile: drawer abierto/cerrado
   const [drawerOpen,   setDrawerOpen]   = useState(false)
+
+  // Config de la aplicación (logo + nombre)
+  const [logoUrl,  setLogoUrl]  = useState(null)
+  const [appName,  setAppName]  = useState(null)
+
+  useEffect(() => {
+    configuracionService.obtener()
+      .then(({ data }) => {
+        setLogoUrl(data.logo_url || null)
+        setAppName(data.app_name || null)
+        if (data.app_name) document.title = data.app_name
+      })
+      .catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.detail?.logo_url !== undefined) setLogoUrl(e.detail.logo_url || null)
+      if (e.detail?.app_name) { setAppName(e.detail.app_name); document.title = e.detail.app_name }
+    }
+    window.addEventListener('configuracion-updated', handler)
+    return () => window.removeEventListener('configuracion-updated', handler)
+  }, [])
 
   // Al cambiar tamaño, auto-colapsar en tablet
   useEffect(() => {
@@ -330,6 +362,8 @@ export default function LayoutPrincipal() {
             usuario={usuario}
             onCollapse={() => setCollapsed(!collapsed)}
             isMobile={false}
+            logoUrl={logoUrl}
+            appName={appName}
           />
         </div>
       )}
@@ -355,6 +389,8 @@ export default function LayoutPrincipal() {
             usuario={usuario}
             onCollapse={() => setDrawerOpen(false)}
             isMobile={true}
+            logoUrl={logoUrl}
+            appName={appName}
           />
         </AntDrawer>
       )}
@@ -459,7 +495,7 @@ export default function LayoutPrincipal() {
                 borderRadius: 24, cursor: 'pointer',
                 background: '#f8fafc',
               }}>
-                <Avatar size={24} style={{
+                <Avatar size={24} src={usuario?.foto_url || undefined} style={{
                   background: ROL_COLORS[usuario?.rol] || '#1d4ed8',
                   fontSize: 10, fontWeight: 600,
                 }}>

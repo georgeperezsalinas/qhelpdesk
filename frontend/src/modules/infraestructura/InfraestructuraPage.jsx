@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo, forwardRef, useImperativeHandle } from 'react'
 import { AgGridReact } from 'ag-grid-react'
 import {
   Button, Space, Tag, Badge, Card, Statistic, Row, Col,
@@ -35,7 +35,7 @@ const TipoServidorRenderer = ({ value }) => {
 }
 
 // ── TAB SERVIDORES ────────────────────────────────────────────────────────────
-function TabServidores({ tecnicos, sedes }) {
+const TabServidores = forwardRef(function TabServidores({ tecnicos, sedes }, ref) {
   const gridRef = useRef()
   const { usuario } = useAuthStore()
   const esJefe = ['jefe', 'especialista'].includes(usuario?.rol)
@@ -64,6 +64,10 @@ function TabServidores({ tecnicos, sedes }) {
     form.setFieldsValue({ tipo: 'fisico', estado: 'operativo' })
     setDrawerForm(true)
   }
+
+  const exportar = () => gridRef.current?.api.exportDataAsCsv({ fileName: 'servidores.csv' })
+
+  useImperativeHandle(ref, () => ({ reload: cargar, exportar, openNew: abrirNuevo }), [cargar])
 
   const abrirEditar = (s) => {
     setSelected(s)
@@ -160,21 +164,6 @@ function TabServidores({ tecnicos, sedes }) {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
-        <Space>
-          <Button icon={<ReloadOutlined />} onClick={cargar} loading={loading} />
-          <Button icon={<ExportOutlined />}
-            onClick={() => gridRef.current?.api.exportDataAsCsv({ fileName: 'servidores.csv' })}>
-            CSV
-          </Button>
-          {esJefe && (
-            <Button type="primary" icon={<PlusOutlined />} onClick={abrirNuevo}>
-              Registrar servidor
-            </Button>
-          )}
-        </Space>
-      </div>
-
       <div className={`${AG_THEME_CLASS} grid-container`}>
         <AgGridReact
           ref={gridRef} rowData={servidores} columnDefs={columnDefs}
@@ -359,10 +348,10 @@ function TabServidores({ tecnicos, sedes }) {
       </Drawer>
     </div>
   )
-}
+})
 
 // ── TAB DISPOSITIVOS DE RED ───────────────────────────────────────────────────
-function TabDispositivos({ sedes }) {
+const TabDispositivos = forwardRef(function TabDispositivos({ sedes }, ref) {
   const gridRef = useRef()
   const { usuario } = useAuthStore()
   const esJefe = ['jefe', 'especialista'].includes(usuario?.rol)
@@ -383,6 +372,15 @@ function TabDispositivos({ sedes }) {
   }, [])
 
   useEffect(() => { cargar() }, [cargar])
+
+  const abrirNuevoDispositivo = () => {
+    setEditando(null)
+    form.resetFields()
+    form.setFieldsValue({ tipo: 'switch', estado: 'operativo' })
+    setDrawerForm(true)
+  }
+
+  useImperativeHandle(ref, () => ({ reload: cargar, openNew: abrirNuevoDispositivo }), [cargar])
 
   const guardar = async (values) => {
     try {
@@ -439,20 +437,6 @@ function TabDispositivos({ sedes }) {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
-        <Space>
-          <Button icon={<ReloadOutlined />} onClick={cargar} loading={loading} />
-          {esJefe && (
-            <Button type="primary" icon={<PlusOutlined />}
-              onClick={() => { setEditando(null); form.resetFields();
-                form.setFieldsValue({ tipo: 'switch', estado: 'operativo' });
-                setDrawerForm(true) }}>
-              Registrar dispositivo
-            </Button>
-          )}
-        </Space>
-      </div>
-
       <div className={`${AG_THEME_CLASS} grid-container`}>
         <AgGridReact
           ref={gridRef} rowData={dispositivos} columnDefs={columnDefs}
@@ -544,13 +528,22 @@ function TabDispositivos({ sedes }) {
       </Drawer>
     </div>
   )
-}
+})
 
 // ── PÁGINA PRINCIPAL ──────────────────────────────────────────────────────────
 export default function InfraestructuraPage() {
-  const [stats,   setStats]   = useState({})
-  const [tecnicos, setTecnicos] = useState([])
-  const [sedes,   setSedes]   = useState([])
+  const { usuario } = useAuthStore()
+  const esJefe = ['jefe', 'especialista'].includes(usuario?.rol)
+
+  const [stats,     setStats]     = useState({})
+  const [tecnicos,  setTecnicos]  = useState([])
+  const [sedes,     setSedes]     = useState([])
+  const [activeTab, setActiveTab] = useState('servidores')
+  const [loading,   setLoading]   = useState(false)
+
+  const servidoresRef  = useRef()
+  const dispositivosRef = useRef()
+  const activeRef = activeTab === 'servidores' ? servidoresRef : dispositivosRef
 
   useEffect(() => {
     infraestructuraService.dashboard().then(({ data }) => setStats(data))
@@ -560,24 +553,46 @@ export default function InfraestructuraPage() {
     )
   }, [])
 
+  const handleReload = () => { activeRef.current?.reload(); setLoading(true); setTimeout(() => setLoading(false), 800) }
+  const handleExport = () => activeRef.current?.exportar?.()
+  const handleNew    = () => activeRef.current?.openNew()
+
   const tabs = [
     {
       key: 'servidores',
       label: <span><HddOutlined /> Servidores ({stats.total_servidores || 0})</span>,
-      children: <TabServidores tecnicos={tecnicos} sedes={sedes} />,
+      children: <TabServidores ref={servidoresRef} tecnicos={tecnicos} sedes={sedes} />,
     },
     {
       key: 'dispositivos',
       label: <span><WifiOutlined /> Red ({stats.total_dispositivos || 0})</span>,
-      children: <TabDispositivos sedes={sedes} />,
+      children: <TabDispositivos ref={dispositivosRef} sedes={sedes} />,
     },
   ]
 
   return (
     <div>
-      <Title level={4} style={{ marginBottom: 16 }}>
-        <DatabaseOutlined style={{ marginRight: 8 }} />Infraestructura
-      </Title>
+      {/* Header con botones al mismo nivel que el título */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <Title level={4} style={{ margin: 0 }}>
+          <DatabaseOutlined style={{ marginRight: 8 }} />Infraestructura
+        </Title>
+        <Space>
+          <Button icon={<ReloadOutlined />} onClick={handleReload} loading={loading}>
+            Actualizar
+          </Button>
+          {activeTab === 'servidores' && (
+            <Button icon={<ExportOutlined />} onClick={handleExport}>
+              Exportar CSV
+            </Button>
+          )}
+          {esJefe && (
+            <Button type="primary" icon={<PlusOutlined />} onClick={handleNew}>
+              {activeTab === 'servidores' ? 'Registrar servidor' : 'Registrar dispositivo'}
+            </Button>
+          )}
+        </Space>
+      </div>
 
       {/* Alertas */}
       {(stats.servidores_fuera > 0 || stats.dispositivos_con_problema > 0) && (
@@ -585,19 +600,19 @@ export default function InfraestructuraPage() {
           message={`Problema detectado: ${stats.servidores_fuera || 0} servidor(es) fuera de línea, ${stats.dispositivos_con_problema || 0} dispositivo(s) con problema`} />
       )}
 
-      {/* Stats */}
+      {/* KPI Strip */}
       <KpiStrip items={[
-        { label: 'Servidores',      value: stats.total_servidores,         color: '#64748b'  },
-        { label: 'Operativos',      value: stats.servidores_operativos,    color: '#22c55e'  },
-        { label: 'Degradados',      value: stats.servidores_degradados,    color: '#f59e0b'  },
-        { label: 'Fuera',           value: stats.servidores_fuera,         color: stats.servidores_fuera > 0 ? '#ef4444' : '#22c55e' },
-        { label: 'Dispositivos red',value: stats.total_dispositivos,       color: '#64748b'  },
-        { label: 'Red operativa',   value: stats.dispositivos_operativos,  color: '#22c55e'  },
-        { label: 'Red con problema',value: stats.dispositivos_con_problema,color: stats.dispositivos_con_problema > 0 ? '#ef4444' : '#22c55e' },
-        { label: 'Bases de datos',  value: stats.bases_datos_activas,      color: '#1677ff'  },
+        { label: 'Servidores',       value: stats.total_servidores,          color: '#64748b' },
+        { label: 'Operativos',       value: stats.servidores_operativos,     color: '#22c55e' },
+        { label: 'Degradados',       value: stats.servidores_degradados,     color: '#f59e0b' },
+        { label: 'Fuera',            value: stats.servidores_fuera,          color: stats.servidores_fuera > 0 ? '#ef4444' : '#22c55e' },
+        { label: 'Dispositivos red', value: stats.total_dispositivos,        color: '#64748b' },
+        { label: 'Red operativa',    value: stats.dispositivos_operativos,   color: '#22c55e' },
+        { label: 'Red con problema', value: stats.dispositivos_con_problema, color: stats.dispositivos_con_problema > 0 ? '#ef4444' : '#22c55e' },
+        { label: 'Bases de datos',   value: stats.bases_datos_activas,       color: '#1677ff' },
       ]} />
 
-      <Tabs items={tabs} defaultActiveKey="servidores" />
+      <Tabs items={tabs} activeKey={activeTab} onChange={setActiveTab} />
     </div>
   )
 }

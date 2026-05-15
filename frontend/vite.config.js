@@ -9,6 +9,10 @@ export default defineConfig({
         target: 'http://localhost:8000',
         changeOrigin: true,
       },
+      '/uploads': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+      },
       '/api/v1/notificaciones/ws': {
         target: 'ws://localhost:8000',
         ws: true,
