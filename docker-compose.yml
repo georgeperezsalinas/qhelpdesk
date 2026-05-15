@@ -12,6 +12,9 @@ services:
     ports:
       - "127.0.0.1:8002:8000"
 
+    volumes:
+      - /opt/qhelpdesk/data/uploads:/app/uploads
+
     networks:
       - default
       - siscont-erp_default
