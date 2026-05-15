@@ -74,7 +74,7 @@ def _proveedores(db):
 def _usuarios(db):
     from app.models.usuario import Usuario, RolUsuario
     from app.models.sede import Sede
-    if db.query(Usuario).count(): return
+    if db.query(Usuario).filter(Usuario.username == "director").first(): return
 
     sede_central  = db.query(Sede).filter(Sede.codigo == "LIMA-CENTRAL").first()
     sede_norte    = db.query(Sede).filter(Sede.codigo == "TRU-01").first()
