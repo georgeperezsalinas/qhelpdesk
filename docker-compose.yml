@@ -1,47 +1,95 @@
 name: qhelpdesk
 
 services:
+
+  # ── Base de datos caché / broker Celery ──────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: qhelpdesk_redis
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    networks:
+      - default
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── API FastAPI ───────────────────────────────────────────────────────────
   api:
     build: ./backend
     container_name: qhelpdesk_api
     restart: unless-stopped
-
-    env_file:
-      - .env
-
+    env_file: .env
     ports:
       - "127.0.0.1:8002:8000"
-
     volumes:
       - /opt/qhelpdesk/data/uploads:/app/uploads
-
+    depends_on:
+      redis:
+        condition: service_healthy
     networks:
       - default
       - siscont-erp_default
-
     healthcheck:
       test:
         [
-          "CMD",
-          "python",
-          "-c",
+          "CMD", "python", "-c",
           "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5)"
         ]
       interval: 30s
       timeout: 10s
       retries: 3
 
+  # ── Frontend Nginx ────────────────────────────────────────────────────────
   web:
     build: ./frontend
     container_name: qhelpdesk_web
     restart: unless-stopped
-
     ports:
       - "127.0.0.1:3002:80"
-
     depends_on:
       api:
         condition: service_healthy
+    networks:
+      - default
+
+  # ── Celery Worker ─────────────────────────────────────────────────────────
+  celery-worker:
+    build: ./backend
+    container_name: qhelpdesk_worker
+    restart: unless-stopped
+    command: celery -A app.celery_app worker --loglevel=info --concurrency=2 -Q celery
+    env_file: .env
+    volumes:
+      - /opt/qhelpdesk/data/uploads:/app/uploads
+    depends_on:
+      api:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - default
+      - siscont-erp_default
+
+  # ── Celery Beat (scheduler de tareas periódicas) ──────────────────────────
+  celery-beat:
+    build: ./backend
+    container_name: qhelpdesk_beat
+    restart: unless-stopped
+    command: celery -A app.celery_app beat --loglevel=info --schedule /tmp/celerybeat-schedule
+    env_file: .env
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - default
+      - siscont-erp_default
+
+volumes:
+  redis_data:
 
 networks:
   siscont-erp_default:

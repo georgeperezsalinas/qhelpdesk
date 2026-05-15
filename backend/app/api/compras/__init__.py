@@ -94,6 +94,7 @@ def aprobar(
     if solicitud.solicitante and solicitud.solicitante.email:
         email_service.compra_aprobada(
             solicitante_email=solicitud.solicitante.email,
+            solicitante_nombre=f"{solicitud.solicitante.nombre} {solicitud.solicitante.apellido}",
             numero=solicitud.numero,
             valor_aprobado=valor_aprobado,
         )
@@ -120,6 +121,7 @@ def rechazar(
     if solicitud.solicitante and solicitud.solicitante.email:
         email_service.compra_rechazada(
             solicitante_email=solicitud.solicitante.email,
+            solicitante_nombre=f"{solicitud.solicitante.nombre} {solicitud.solicitante.apellido}",
             numero=solicitud.numero,
             motivo=motivo,
         )

@@ -22,12 +22,16 @@ class Settings(BaseSettings):
     LDAP_BIND_DN: str = ""
     LDAP_BIND_PASSWORD: str = ""
 
-    # Correo (Resend)
-    RESEND_API_KEY: str = ""
+    # Correo (Mailjet)
+    MAILJET_API_KEY: str = ""
+    MAILJET_API_SECRET: str = ""
     EMAIL_FROM: str = "ventas@qsdsoft.com"
     EMAIL_FROM_NAME: str = "QHelpDesk"
 
-    # Correo legacy SMTP (no usado, reservado para futuro)
+    # URL base del frontend (para links en emails)
+    APP_BASE_URL: str = "http://localhost:5173"
+
+    # SMTP legacy (no usado)
     SMTP_HOST: str = ""
     SMTP_PORT: int = 587
     SMTP_USER: str = ""

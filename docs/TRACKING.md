@@ -84,7 +84,7 @@
 | 3 | ~~Rate limiting en login~~ | Media | ✅ Hecho |
 | 4 | ~~Logging en bloques try/except de notificaciones~~ | Baja | ✅ Hecho |
 | 5 | ~~Email transaccional Resend — ticket asignado, resuelto, comentario, compra aprobada/rechazada~~ | Alta | ✅ Hecho |
-| 6 | Alertas SLA automáticas (job background con Celery ya instalado) | Alta | 🔴 Pendiente |
+| 6 | ~~Alertas SLA automáticas con Celery + Redis (por vencer 2h + vencido, dedup Redis)~~ | Alta | ✅ Hecho |
 
 ### Fase 2 — v1.0 (Prioridad MEDIA)
 
@@ -137,3 +137,4 @@
 |-------|-----------|
 | 2026-05-15 | Auditoría inicial completa. Fixes: password, notificaciones compras, rate limiting |
 | 2026-05-15 | Logging en except pass. Email transaccional con Resend (ventas@qsdsoft.com): ticket asignado, resuelto, comentario, compra aprobada/rechazada |
+| 2026-05-15 | Migración email Resend→Mailjet (a136b0d2...). Alertas SLA Celery: verificar_sla cada 15min, dedup Redis (3h/6h), WS+email por_vencer y vencido. Docker: redis+worker+beat. |

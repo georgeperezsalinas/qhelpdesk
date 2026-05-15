@@ -148,6 +148,7 @@ def agregar_comentario(
             if ticket.solicitante and ticket.solicitante.email:
                 email_service.ticket_comentario(
                     solicitante_email=ticket.solicitante.email,
+                    solicitante_nombre=f"{ticket.solicitante.nombre} {ticket.solicitante.apellido}",
                     numero=ticket.numero,
                     titulo=ticket.titulo,
                     comentario=data.contenido,
