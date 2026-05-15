@@ -1,3 +1,4 @@
+import logging
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
@@ -13,6 +14,9 @@ from app.schemas.ticket import (
 )
 from app.services.ticket_service import TicketService
 from app.services.notificacion_service import NotificacionService
+from app.services.email_service import email_service
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -52,14 +56,23 @@ def crear_ticket(
 ):
     svc = TicketService(db)
     ticket = svc.crear(data, current_user)
-    # Notificar en tiempo real
     try:
         NotificacionService(db).ticket_creado(
             ticket.numero, ticket.titulo,
             ticket.solicitante_id, ticket.tecnico_id
         )
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning("WS notif ticket_creado %s: %s", ticket.numero, exc)
+    # Email al técnico asignado
+    if ticket.tecnico_id and ticket.tecnico and ticket.tecnico.email:
+        email_service.ticket_asignado(
+            tecnico_email=ticket.tecnico.email,
+            tecnico_nombre=f"{ticket.tecnico.nombre} {ticket.tecnico.apellido}",
+            numero=ticket.numero,
+            titulo=ticket.titulo,
+            prioridad=ticket.prioridad.value,
+            solicitante=f"{ticket.solicitante.nombre} {ticket.solicitante.apellido}",
+        )
     return ticket
 
 @router.get("/{ticket_id}", response_model=TicketRead)
@@ -82,14 +95,21 @@ def actualizar_ticket(
 ):
     svc = TicketService(db)
     ticket = svc.actualizar(ticket_id, data, current_user)
-    # Notificar si se resolvió
-    try:
-        if data.estado == EstadoTicket.resuelto:
+    if data.estado == EstadoTicket.resuelto:
+        try:
             NotificacionService(db).ticket_resuelto(
                 ticket.numero, ticket.solicitante_id
             )
-    except Exception:
-        pass
+        except Exception as exc:
+            logger.warning("WS notif ticket_resuelto %s: %s", ticket.numero, exc)
+        # Email al solicitante
+        if ticket.solicitante and ticket.solicitante.email:
+            email_service.ticket_resuelto(
+                solicitante_email=ticket.solicitante.email,
+                solicitante_nombre=ticket.solicitante.nombre,
+                numero=ticket.numero,
+                titulo=ticket.titulo,
+            )
     return ticket
 
 @router.get("/{ticket_id}/comentarios", response_model=List[ComentarioRead])
@@ -109,20 +129,30 @@ def agregar_comentario(
 ):
     svc   = TicketService(db)
     coment = svc.agregar_comentario(ticket_id, data, current_user)
-    # Notificar al solicitante si el técnico comenta
-    try:
+    # Solo notificar al solicitante cuando el técnico hace un comentario público
+    if not data.es_interno:
         ticket = svc.obtener(ticket_id)
-        if ticket and current_user.id != ticket.solicitante_id and not data.es_interno:
-            from app.models.notificacion import TipoNotificacion
-            NotificacionService(db).notificar_usuario(
-                ticket.solicitante_id,
-                TipoNotificacion.ticket_actualizado,
-                f"Nuevo comentario en {ticket.numero}",
-                data.contenido[:120],
-                url="/portal/mis-tickets",
-            )
-    except Exception:
-        pass
+        if ticket and current_user.id != ticket.solicitante_id:
+            try:
+                from app.models.notificacion import TipoNotificacion
+                NotificacionService(db).notificar_usuario(
+                    ticket.solicitante_id,
+                    TipoNotificacion.ticket_actualizado,
+                    f"Nuevo comentario en {ticket.numero}",
+                    data.contenido[:120],
+                    url="/portal/mis-tickets",
+                )
+            except Exception as exc:
+                logger.warning("WS notif comentario %s: %s", ticket_id, exc)
+            # Email al solicitante
+            if ticket.solicitante and ticket.solicitante.email:
+                email_service.ticket_comentario(
+                    solicitante_email=ticket.solicitante.email,
+                    numero=ticket.numero,
+                    titulo=ticket.titulo,
+                    comentario=data.contenido,
+                    autor_nombre=f"{current_user.nombre} {current_user.apellido}",
+                )
     return coment
 
 @router.post("/{ticket_id}/nps", response_model=TicketRead)

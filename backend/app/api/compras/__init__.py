@@ -8,8 +8,12 @@ from app.models.usuario import Usuario, RolUsuario
 from app.schemas.compra import (
     SolicitudCreate, SolicitudUpdate, SolicitudRead, DashboardCompras
 )
+import logging
 from app.services.compra_service import CompraService
 from app.services.notificacion_service import NotificacionService
+from app.services.email_service import email_service
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 ROLES_TI = [RolUsuario.jefe, RolUsuario.especialista, RolUsuario.mesa_ayuda]
@@ -85,8 +89,14 @@ def aprobar(
         NotificacionService(db).solicitud_aprobada(
             solicitud.numero, solicitud.solicitante_id
         )
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning("WS notif compra_aprobada %s: %s", solicitud.numero, exc)
+    if solicitud.solicitante and solicitud.solicitante.email:
+        email_service.compra_aprobada(
+            solicitante_email=solicitud.solicitante.email,
+            numero=solicitud.numero,
+            valor_aprobado=valor_aprobado,
+        )
     return solicitud
 
 @router.post("/{sid}/rechazar", response_model=SolicitudRead)
@@ -105,6 +115,12 @@ def rechazar(
         NotificacionService(db).solicitud_rechazada(
             solicitud.numero, solicitud.solicitante_id, motivo
         )
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning("WS notif compra_rechazada %s: %s", solicitud.numero, exc)
+    if solicitud.solicitante and solicitud.solicitante.email:
+        email_service.compra_rechazada(
+            solicitante_email=solicitud.solicitante.email,
+            numero=solicitud.numero,
+            motivo=motivo,
+        )
     return solicitud

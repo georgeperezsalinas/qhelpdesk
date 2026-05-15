@@ -22,12 +22,16 @@ class Settings(BaseSettings):
     LDAP_BIND_DN: str = ""
     LDAP_BIND_PASSWORD: str = ""
 
-    # Correo
+    # Correo (Resend)
+    RESEND_API_KEY: str = ""
+    EMAIL_FROM: str = "ventas@qsdsoft.com"
+    EMAIL_FROM_NAME: str = "QHelpDesk"
+
+    # Correo legacy SMTP (no usado, reservado para futuro)
     SMTP_HOST: str = ""
     SMTP_PORT: int = 587
     SMTP_USER: str = ""
     SMTP_PASSWORD: str = ""
-    EMAIL_FROM: str = "noreply@entidad.gob.pe"
 
     # CORS
     ALLOWED_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:5173"]

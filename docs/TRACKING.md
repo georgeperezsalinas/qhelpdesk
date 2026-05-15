@@ -65,10 +65,11 @@
 
 ### 🔴 PENDIENTE — `{username}2024*` ya corregido arriba (ver arriba)
 
-### 🔴 PENDIENTE — Sin manejo de errores en notificaciones de tickets
-- **Archivos:** `backend/app/api/tickets/__init__.py` líneas 56-62, 86-92, 113-125
+### ✅ RESUELTO — Sin manejo de errores en notificaciones de tickets
+- **Archivos:** `backend/app/api/tickets/__init__.py`
 - **Problema:** `except Exception: pass` — errores de notificación silenciados sin logging
-- **Fix:** Reemplazar `pass` con `logger.warning(...)` para visibilidad en producción
+- **Fix:** Reemplazar `pass` con `logger.warning(...)` en los 3 bloques
+- **Resuelto:** 2026-05-15
 
 ---
 
@@ -81,8 +82,8 @@
 | 1 | ~~Fix password temporal predecible~~ | Baja | ✅ Hecho |
 | 2 | ~~Fix notificaciones compras~~ | Baja | ✅ Hecho |
 | 3 | ~~Rate limiting en login~~ | Media | ✅ Hecho |
-| 4 | Logging en bloques try/except de notificaciones | Baja | 🔴 Pendiente |
-| 5 | Email SMTP — notificaciones salientes (ticket creado, resuelto) | Alta | 🔴 Pendiente |
+| 4 | ~~Logging en bloques try/except de notificaciones~~ | Baja | ✅ Hecho |
+| 5 | ~~Email transaccional Resend — ticket asignado, resuelto, comentario, compra aprobada/rechazada~~ | Alta | ✅ Hecho |
 | 6 | Alertas SLA automáticas (job background con Celery ya instalado) | Alta | 🔴 Pendiente |
 
 ### Fase 2 — v1.0 (Prioridad MEDIA)
@@ -135,3 +136,4 @@
 | Fecha | Actividad |
 |-------|-----------|
 | 2026-05-15 | Auditoría inicial completa. Fixes: password, notificaciones compras, rate limiting |
+| 2026-05-15 | Logging en except pass. Email transaccional con Resend (ventas@qsdsoft.com): ticket asignado, resuelto, comentario, compra aprobada/rechazada |
