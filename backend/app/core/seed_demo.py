@@ -115,6 +115,7 @@ def _tickets_demo(db):
     usuarios = {u.username: u for u in db.query(Usuario).all()}
     sedes    = {s.codigo: s for s in db.query(Sede).all()}
     equipos  = {e.codigo_inventario: e for e in db.query(Equipo).all()}
+    base_num = db.query(func.count(Ticket.id)).scalar()
 
     def mk_ticket(num_offset, titulo, desc, prioridad, estado, categoria, canal,
                   solicitante, tecnico=None, sede_cod="LIMA-CENTRAL",
@@ -124,7 +125,7 @@ def _tickets_demo(db):
                   PrioridadTicket.media:24, PrioridadTicket.baja:72}
         sla    = creado + timedelta(hours=sla_h[prioridad])
         t = Ticket(
-            numero=f"TK-2024-{db.query(func.count(Ticket.id)).scalar()+1:05d}",
+            numero=f"TK-2024-{base_num + num_offset:05d}",
             titulo=titulo, descripcion=desc,
             prioridad=prioridad, estado=estado, categoria=categoria,
             canal_entrada=canal,
