@@ -1,0 +1,434 @@
+/* ─────────────────────────────────────────────────────────────────────
+   src/modules/tickets/TicketsPage.css
+   Estilos para TicketsPage + override AG Grid + drawer detalle.
+   Requiere tokens.css y DashboardPage.css (para .qph y .qsec-h).
+   Si DashboardPage.css no está cargado en esta ruta, las clases .qph,
+   .qsec-h, .qkpi-lbl, .qpill, .qav-named, .qmuted, .qmono ya se vuelven
+   a declarar aquí donde hace falta o se asume cargado globalmente.
+   ───────────────────────────────────────────────────────────────────── */
+
+.qtickets { /* contenedor — sin estilos directos, solo namespace */ }
+
+/* ── Reutilizables (por si esta página se monta sin Dashboard.css) ── */
+.qmuted { color: var(--ink-3); }
+.qmono  { font-family: var(--f-mono); }
+
+.qpill {
+  display: inline-flex; align-items: center; gap: 5px;
+  height: 20px; padding: 0 8px;
+  font-size: 10.5px; font-weight: 500;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.qpill-dot { width: 5px; height: 5px; border-radius: 50%; }
+.qpill.crit  { background: var(--crit-soft); color: var(--crit); }
+.qpill.crit  .qpill-dot { background: var(--crit); }
+.qpill.warn  { background: var(--warn-soft); color: #9A4708; }
+.qpill.warn  .qpill-dot { background: var(--warn); }
+.qpill.info  { background: var(--info-soft); color: var(--info); }
+.qpill.info  .qpill-dot { background: var(--info); }
+.qpill.ok    { background: var(--ok-soft);   color: var(--ok); }
+.qpill.ok    .qpill-dot { background: var(--ok); }
+.qpill.plum  { background: var(--plum-soft); color: var(--plum); }
+.qpill.plum  .qpill-dot { background: var(--plum); }
+.qpill.muted { background: var(--bg-sunken); color: var(--ink-3); }
+.qpill.muted .qpill-dot { background: var(--ink-4); }
+
+.qav-named { display: inline-flex; align-items: center; gap: 7px; min-width: 0; }
+.qav-named > .ant-avatar { flex-shrink: 0; }
+.qav-named > span:not(.ant-avatar) {
+  font-size: 12px;
+  color: var(--ink-1);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* ── KPI strip ────────────────────────────────────────────────────── */
+.qkpi-row {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  background: var(--bg-surface);
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  margin-bottom: 18px;
+  box-shadow: var(--shadow-sm);
+}
+@media (max-width: 1100px) { .qkpi-row { grid-template-columns: repeat(4, 1fr); } }
+@media (max-width: 640px)  { .qkpi-row { grid-template-columns: repeat(2, 1fr); } }
+.qkpi-cell { padding: 12px 14px; }
+.qkpi-lbl {
+  font-size: 9.5px; font-weight: 600;
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--ink-3);
+  margin-bottom: 6px;
+}
+.qkpi-cell-val {
+  font-family: var(--f-display);
+  font-size: 28px;
+  line-height: 1;
+  color: var(--ink-1);
+  letter-spacing: -0.02em;
+}
+.qkpi-cell-val.tone-ok   { color: var(--ok); }
+.qkpi-cell-val.tone-warn { color: var(--warn); }
+.qkpi-cell-val.tone-crit { color: var(--crit); }
+.qkpi-cell-val.tone-info { color: var(--info); }
+.qkpi-cell-val.tone-plum { color: var(--plum); }
+
+/* ── Toolbar ──────────────────────────────────────────────────────── */
+.qtoolbar {
+  display: flex; align-items: center;
+  gap: 10px; flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.qinput-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+.qinput-wrap .anticon {
+  position: absolute; left: 10px; top: 9px;
+  color: var(--ink-3);
+}
+.qinput {
+  height: 32px;
+  border: 1px solid var(--line-1);
+  background: var(--bg-surface);
+  border-radius: var(--radius-sm);
+  padding: 0 12px 0 32px;
+  font-size: 12px;
+  color: var(--ink-1);
+  font-family: var(--f-ui);
+  outline: none;
+  min-width: 280px;
+  transition: border-color 0.12s;
+}
+.qinput:focus { border-color: var(--ink-2); }
+.qinput::placeholder { color: var(--ink-4); }
+
+.qtag-filter {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px dashed var(--line-1);
+  border-radius: 999px;
+  font-size: 11.5px;
+  color: var(--ink-3);
+  cursor: pointer;
+}
+.qtag-filter:hover { color: var(--ink-1); border-color: var(--ink-4); }
+
+/* ── Grid container ───────────────────────────────────────────────── */
+.qgrid {
+  height: calc(100vh - 360px);
+  min-height: 420px;
+  width: 100%;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid var(--line-1);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ── AG Grid overrides (rediseño v2) ──────────────────────────────── */
+.qgrid.ag-theme-quartz {
+  --ag-font-family: var(--f-ui);
+  --ag-font-size: 12.5px;
+  --ag-background-color: var(--bg-surface);
+
+  --ag-header-background-color: var(--bg-tinted);
+  --ag-header-foreground-color: var(--ink-3);
+
+  --ag-border-color:     var(--line-1);
+  --ag-row-border-color: var(--line-3);
+
+  --ag-odd-row-background-color:      var(--bg-surface);
+  --ag-even-row-background-color:     var(--bg-surface);
+  --ag-row-hover-color:               var(--bg-tinted);
+  --ag-selected-row-background-color: rgba(180,83,9,0.08);
+
+  --ag-cell-horizontal-padding: 12px;
+  --ag-header-height:    36px;
+  --ag-row-height:       36px;
+  --ag-list-item-height: 28px;
+
+  --ag-range-selection-border-color: var(--acc);
+  --ag-input-focus-border-color:     var(--ink-2);
+}
+
+.qgrid .ag-header {
+  border-bottom: 1px solid var(--line-1);
+  background: var(--bg-tinted);
+}
+.qgrid .ag-header-cell { border-right: 0; }
+.qgrid .ag-header-cell-label {
+  font-weight: 700;
+  font-size: 9.5px;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+}
+.qgrid .ag-row {
+  border-bottom: 1px solid var(--line-3);
+}
+.qgrid .ag-cell {
+  font-size: 12.5px;
+  color: var(--ink-1);
+  border-right: 0;
+  display: flex; align-items: center;
+  overflow: hidden;
+  line-height: 1.2;
+}
+.qgrid .ag-pinned-left-cols-container,
+.qgrid .ag-pinned-left-header {
+  border-right: 1px solid var(--line-1);
+  box-shadow: none;
+}
+.qgrid .ag-pinned-right-cols-container,
+.qgrid .ag-pinned-right-header {
+  border-left: 1px solid var(--line-1);
+  box-shadow: none;
+}
+.qgrid .ag-paging-panel {
+  border-top: 1px solid var(--line-1);
+  padding: 6px 16px;
+  background: var(--bg-tinted);
+  font-size: 11px;
+  color: var(--ink-3);
+  font-family: var(--f-mono);
+}
+.qgrid .ag-paging-button {
+  border: 1px solid var(--line-1);
+  border-radius: 4px;
+  background: var(--bg-surface);
+  color: var(--ink-2);
+}
+.qgrid .ag-paging-button:hover { background: var(--bg-sunken); }
+.qgrid .ag-checkbox-input-wrapper { font-size: 14px; }
+.qgrid .ag-checkbox-input-wrapper::after { color: var(--acc); }
+.qgrid .ag-checkbox-input-wrapper.ag-checked::after { color: var(--ink-1); }
+.qgrid .ag-row-hover { background: var(--bg-tinted) !important; }
+.qgrid .ag-row-selected { background: rgba(180,83,9,0.06) !important; }
+
+/* SLA cell */
+.qsla {
+  display: inline-flex; flex-direction: column;
+  gap: 3px; width: 100%; max-width: 130px;
+}
+.qsla-meta {
+  display: flex; justify-content: space-between;
+  font-size: 10.5px;
+  color: var(--ink-3);
+  font-family: var(--f-mono);
+}
+.qsla-bar { height: 3px; background: var(--bg-sunken); border-radius: 2px; overflow: hidden; }
+.qsla-fill { height: 100%; border-radius: 2px; }
+.qsla-fill.ok   { background: var(--ok); }
+.qsla-fill.warn { background: var(--warn); }
+.qsla-fill.crit { background: var(--crit); }
+
+/* ── Drawer detalle ───────────────────────────────────────────────── */
+.qdrawer .ant-drawer-body { padding: 24px 28px !important; background: var(--bg-canvas); }
+.qdrawer .ant-drawer-header { background: var(--bg-canvas); }
+
+.qdetail-head { margin-bottom: 16px; }
+.qdetail-head h2 {
+  font-family: var(--f-display);
+  font-size: 28px;
+  line-height: 1.18;
+  letter-spacing: -0.01em;
+  color: var(--ink-1);
+  margin: 6px 0 10px;
+  font-weight: 400;
+}
+.qdetail-tags {
+  display: flex; gap: 8px; flex-wrap: wrap;
+  align-items: center;
+}
+
+.qsla-banner {
+  background: var(--crit-soft);
+  border: 1px solid #E9B7B3;
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  display: flex; align-items: flex-start; gap: 12px;
+  color: var(--crit);
+  margin-bottom: 16px;
+}
+.qsla-banner .anticon { font-size: 18px; flex-shrink: 0; padding-top: 1px; }
+.qsla-banner-t { font-size: 12.5px; font-weight: 600; }
+.qsla-banner-s { font-size: 11.5px; color: #8A2A24; margin-top: 2px; }
+
+.qdetail-actions {
+  display: flex; gap: 8px; flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+
+.qmeta-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: var(--line-2);
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  margin: 0 0 22px;
+}
+.qmeta-cell { background: var(--bg-surface); padding: 12px 14px; }
+.qmeta-k {
+  font-size: 9.5px; font-weight: 600;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--ink-3);
+  margin-bottom: 6px;
+}
+.qmeta-v {
+  font-size: 13px; color: var(--ink-1);
+  font-weight: 500;
+}
+.qmeta-v.qmono { font-family: var(--f-mono); font-size: 12px; font-weight: 400; }
+.qrow { display: flex; align-items: center; gap: 10px; }
+
+.qsection-block {
+  background: var(--bg-surface);
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius-md);
+  margin-bottom: 18px;
+}
+.qsection-title {
+  padding: 12px 16px;
+  font-size: 10.5px; font-weight: 700;
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--ink-3);
+  border-bottom: 1px solid var(--line-2);
+}
+.qsection-body {
+  padding: 14px 16px;
+  font-size: 12.5px;
+  color: var(--ink-2);
+  line-height: 1.6;
+}
+
+/* Sec heading (reuso) */
+.qsec-h {
+  display: flex; align-items: baseline; justify-content: space-between;
+  margin: 24px 0 14px;
+  border-bottom: 1px solid var(--line-1);
+  padding-bottom: 10px;
+}
+.qsec-l {
+  font-family: var(--f-display);
+  font-style: italic;
+  font-size: 20px;
+  color: var(--ink-1);
+}
+.qsec-num {
+  font-family: var(--f-mono);
+  font-style: normal;
+  font-size: 10px;
+  color: var(--ink-3);
+  letter-spacing: 0.1em;
+  margin-right: 12px;
+  vertical-align: middle;
+}
+.qsec-r { font-size: 11.5px; color: var(--ink-3); }
+
+/* Timeline */
+.qtl { position: relative; padding-left: 22px; margin: 8px 0 0; }
+.qtl::before {
+  content: ""; position: absolute; left: 6px; top: 6px; bottom: 6px;
+  width: 1px; background: var(--line-1);
+}
+.qtl-item { position: relative; padding: 6px 0 18px; }
+.qtl-item:last-child { padding-bottom: 0; }
+.qtl-item::before {
+  content: ""; position: absolute; left: -22px; top: 12px;
+  width: 11px; height: 11px;
+  border-radius: 50%;
+  background: var(--bg-canvas);
+  border: 2px solid var(--ink-4);
+}
+.qtl-item.internal::before { border-color: var(--acc); }
+.qtl-head {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  font-size: 12.5px; color: var(--ink-1);
+}
+.qtl-actor { font-weight: 600; }
+.qtl-when {
+  font-size: 10.5px; color: var(--ink-3);
+  margin-left: auto;
+}
+.qtl-body {
+  font-size: 12.5px; color: var(--ink-2);
+  margin-top: 5px; line-height: 1.55;
+  background: var(--bg-surface);
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius-sm);
+  padding: 9px 12px;
+  white-space: pre-wrap;
+}
+.qtl-body.internal {
+  background: var(--warn-soft);
+  border-color: var(--acc-line);
+}
+
+/* Composer */
+.qcomposer {
+  background: var(--bg-surface);
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius-md);
+  margin-top: 16px;
+  padding: 4px;
+}
+.qcomposer textarea {
+  border: 0 !important;
+  background: transparent !important;
+  resize: vertical;
+  padding: 10px 12px;
+  font-family: var(--f-ui);
+  font-size: 12.5px;
+}
+.qcomposer textarea:focus { box-shadow: none !important; }
+.qcomposer-bar {
+  display: flex; align-items: center;
+  gap: 6px; padding: 6px 8px 4px;
+  border-top: 1px solid var(--line-2);
+}
+.qbtn-toggle {
+  height: 26px; padding: 0 10px;
+  background: var(--bg-surface);
+  color: var(--ink-3);
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius-sm);
+  font-size: 11.5px; font-weight: 500;
+  cursor: pointer;
+}
+.qbtn-toggle.on {
+  background: var(--warn-soft);
+  color: var(--warn);
+  border-color: var(--acc-line);
+}
+
+/* Form (nuevo ticket) — sectioned */
+.qform-section-h {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--bg-tinted);
+  border-top: 1px solid var(--line-2);
+  border-bottom: 1px solid var(--line-2);
+  padding: 9px 20px;
+  font-size: 10px; font-weight: 700;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+}
+.qform-section-h:first-child { border-top: 0; }
+.qform-section-b { padding: 18px 20px 6px; }
+
+.qform-footer {
+  border-top: 1px solid var(--line-1);
+  padding: 12px 20px;
+  background: var(--bg-tinted);
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
+}

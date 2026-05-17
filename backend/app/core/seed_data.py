@@ -16,6 +16,7 @@ def run():
         _proveedores(db)
         _usuarios(db)
         _articulos_kb(db)
+        _articulos_kb_extra(db)
         _equipos(db)
         _licencias(db)
         _cronogramas(db)
@@ -221,6 +222,61 @@ def _articulos_kb(db):
     ]
     db.add_all(articulos); db.flush()
     print(f"  ✔ Artículos KB: {len(articulos)}")
+
+
+def _articulos_kb_extra(db):
+    from app.models.conocimiento import ArticuloKB, EstadoArticulo
+    extras = [
+        # SOFTWARE
+        ArticuloKB(titulo="Error 'No se puede abrir el archivo' en Office",
+                   contenido="1. Verificar que el archivo no esté en uso por otro usuario.\n2. Revisar que tenga permisos de lectura/escritura sobre la carpeta.\n3. Si el archivo está en red, mapear la unidad de red correctamente (\\\\servidor\\datos).\n4. Reparar Office: Panel de Control > Programas > Microsoft Office > Cambiar > Reparación rápida.",
+                   categoria="software", tags="office,archivo,error", estado=EstadoArticulo.publicado),
+        ArticuloKB(titulo="Cómo instalar un programa nuevo en mi equipo",
+                   contenido="Los usuarios no tienen permisos de instalación por política de seguridad.\n\nPasos:\n1. Crear un ticket de categoría 'Software' indicando el programa a instalar y su justificación.\n2. El jefe de área debe aprobar la solicitud.\n3. Mesa de ayuda instalará el software en un plazo de 24 horas hábiles.\n\nNota: No intente instalar software por su cuenta; puede generar alertas de seguridad.",
+                   categoria="software", tags="instalacion,software,permisos", estado=EstadoArticulo.publicado),
+        ArticuloKB(titulo="Windows Update está causando lentitud en mi PC",
+                   contenido="1. Verifique si hay actualizaciones en proceso: Configuración > Windows Update.\n2. Si el equipo lleva más de 30 minutos lento, reinícielo fuera del horario de trabajo.\n3. Si persiste, cree un ticket indicando: versión de Windows, RAM disponible (Task Manager > Performance) y hora aproximada de inicio del problema.\n4. Mesa de ayuda puede reprogramar las actualizaciones para horarios nocturnos.",
+                   categoria="software", tags="windows,actualizacion,lentitud", estado=EstadoArticulo.publicado),
+        # RED
+        ArticuloKB(titulo="No tengo acceso a Internet desde mi puesto",
+                   contenido="Pasos a seguir:\n1. Verificar que el cable de red esté bien conectado (luz verde en el puerto).\n2. Reiniciar el adaptador de red: Configuración > Redes > Deshabilitar / Habilitar.\n3. Probar con otro cable o puerto del switch.\n4. Verificar si otros compañeros en la misma área tienen el mismo problema (puede ser caída del switch).\n5. Si el problema persiste, crear ticket con categoría 'Red' indicando número de PC y ubicación física.",
+                   categoria="red", tags="internet,red,cable,switch", estado=EstadoArticulo.publicado),
+        ArticuloKB(titulo="Conexión Wi-Fi lenta o inestable",
+                   contenido="1. Acercarse al access point más cercano (preguntar a sistemas por su ubicación).\n2. Olvidar la red y volver a conectarse: Configuración > Wi-Fi > Propiedades > Olvidar.\n3. Cambiar al canal 5 GHz si el equipo lo soporta (mayor velocidad, menor alcance).\n4. Evitar zonas con muchos dispositivos Bluetooth o microondas que interfieren.\n5. Si trabaja con archivos grandes en red, prefiera siempre el cable ethernet.",
+                   categoria="red", tags="wifi,lento,acceso,red", estado=EstadoArticulo.publicado),
+        # SEGURIDAD
+        ArticuloKB(titulo="Sospechas de virus o malware en mi PC",
+                   contenido="¡No apague el equipo! Pasos inmediatos:\n1. Desconecte el cable de red del equipo para aislarlo.\n2. Cree un ticket URGENTE con categoría 'Seguridad'.\n3. Anote qué estaba haciendo antes de notar el problema (URL visitada, archivo abierto, USB conectado).\n4. No use el equipo hasta que sistemas lo revise.\n\nSeñales de alerta: pop-ups constantes, archivos renombrados con extensión extraña, PC muy lenta sin motivo, antivirus desactivado solo.",
+                   categoria="seguridad", tags="virus,malware,seguridad,antivirus", estado=EstadoArticulo.publicado),
+        ArticuloKB(titulo="Cómo reportar un correo de phishing",
+                   contenido="Si recibiste un correo sospechoso:\n1. NO hagas clic en ningún enlace ni descargues adjuntos.\n2. NO respondas al remitente.\n3. Reenvía el correo completo (con encabezados) a: seguridad@entidad.gob.pe\n4. Crea un ticket con categoría 'Seguridad' describiendo el correo.\n5. Si ya hiciste clic en algún enlace, indícalo en el ticket para actuar de inmediato.\n\nLos correos de phishing suelen: pedir credenciales, crear urgencia ('su cuenta será bloqueada'), tener remitentes con dominios similares al real.",
+                   categoria="seguridad", tags="phishing,correo,seguridad,estafa", estado=EstadoArticulo.publicado),
+        # TELEFONIA
+        ArticuloKB(titulo="Mi teléfono IP no tiene tono o no llama",
+                   contenido="1. Verificar que el cable de red del teléfono esté conectado (el teléfono IP usa PoE — alimentación por red).\n2. Reiniciar el teléfono desconectando el cable de red 10 segundos y reconectándolo.\n3. Comprobar que la pantalla muestre extensión y fecha/hora (indica registro correcto).\n4. Si la pantalla dice 'Registering...' o está en blanco, cree un ticket con el número de extensión y ubicación.\n5. Para llamadas externas, marque 0 antes del número.",
+                   categoria="telefonia", tags="telefono,ip,extension,voip", estado=EstadoArticulo.publicado),
+        # SERVIDOR / SISTEMA CAÍDO
+        ArticuloKB(titulo="El sistema de gestión no carga o da error 500",
+                   contenido="1. Refrescar con Ctrl+F5 para descartar caché del navegador.\n2. Probar en modo incógnito o con otro navegador.\n3. Verificar si el problema ocurre solo en su equipo o en toda el área.\n4. Si es generalizado, ya se generó una alerta automática en sistemas — no es necesario crear múltiples tickets.\n5. Si es solo en su equipo: borrar caché del navegador (Ctrl+Shift+Del), reiniciar y reintentar.\n6. Crear ticket con: URL del sistema, navegador usado, mensaje de error exacto y captura de pantalla.",
+                   categoria="servidor", tags="sistema,error,servidor,caido", estado=EstadoArticulo.publicado),
+        # IMPRESORA adicional
+        ArticuloKB(titulo="Cómo agregar una impresora de red a mi equipo",
+                   contenido="1. Ir a Configuración > Impresoras y escáneres > Agregar impresora.\n2. Si no aparece automáticamente, seleccionar 'La impresora no está en la lista'.\n3. Elegir 'Agregar impresora por dirección TCP/IP' e ingresar la IP (consultar a mesa de ayuda).\n4. Seleccionar el driver correspondiente al modelo.\n5. Imprimir página de prueba.\n\nIPs de impresoras comunes:\n- Piso 1: 192.168.1.50\n- Piso 2: 192.168.1.51\n- Gerencia: 192.168.1.52\n\nSi no tiene permisos para agregar impresoras, cree un ticket y un técnico lo asistirá.",
+                   categoria="impresora", tags="impresora,red,driver,instalacion", estado=EstadoArticulo.publicado),
+        # MANTENIMIENTO
+        ArticuloKB(titulo="Solicitar mantenimiento preventivo de equipo",
+                   contenido="El mantenimiento preventivo se realiza cada 6 meses según cronograma.\n\nSi su equipo presenta:\n- Lentitud progresiva\n- Ruido en el ventilador\n- Calentamiento excesivo\n- Polvo visible en rejillas de ventilación\n\nCree un ticket con categoría 'Mantenimiento' indicando síntomas y número de inventario del equipo (etiqueta en el costado del CPU o laptop).\n\nEl técnico coordinará una fecha para no interrumpir su trabajo.",
+                   categoria="mantenimiento", tags="mantenimiento,preventivo,equipo,inventario", estado=EstadoArticulo.publicado),
+        # HARDWARE adicional
+        ArticuloKB(titulo="Mi monitor no enciende o muestra pantalla negra",
+                   contenido="1. Verificar que el botón de encendido del monitor esté pulsado (luz indicadora).\n2. Revisar el cable de video (HDMI o VGA) en ambos extremos (monitor y PC).\n3. Comprobar que el cable de alimentación del monitor esté conectado.\n4. Probar cambiando el cable de video por uno de repuesto.\n5. Si la PC enciende (ventiladores y luces) pero no hay imagen: presione Windows+P y seleccione 'Solo pantalla de PC'.\n6. Si nada funciona, cree un ticket indicando marca y modelo del monitor.",
+                   categoria="hardware", tags="monitor,pantalla,video,hdmi", estado=EstadoArticulo.publicado),
+    ]
+    titulos_existentes = {t for (t,) in db.query(ArticuloKB.titulo).all()}
+    nuevos = [a for a in extras if a.titulo not in titulos_existentes]
+    if nuevos:
+        db.add_all(nuevos); db.flush()
+        print(f"  ✔ Artículos KB extra: {len(nuevos)}")
 
 
 def _equipos(db):

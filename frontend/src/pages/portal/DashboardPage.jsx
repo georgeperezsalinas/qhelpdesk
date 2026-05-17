@@ -1,18 +1,77 @@
+// ─────────────────────────────────────────────────────────────────────
+// src/pages/portal/DashboardPage.jsx
+// Rediseño v2 — Dashboard editorial
+// Drop-in: mantiene ticketService.dashboard() + listar() y Recharts.
+// ─────────────────────────────────────────────────────────────────────
+
 import { useEffect, useState } from 'react'
-import { Row, Col, Card, Statistic, Typography, Tag, Table, Badge, Spin, Progress } from 'antd'
+import { Card, Spin, Tooltip } from 'antd'
 import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend, LineChart, Line, AreaChart, Area,
+  BarChart, Bar, XAxis, YAxis, Tooltip as ReTooltip, ResponsiveContainer,
+  PieChart, Pie, Cell, AreaChart, Area,
 } from 'recharts'
-import { ticketService, getPrioridad, getEstado } from '../../services/ticketService'
+import { ticketService, getEstado } from '../../services/ticketService'
 import { useAuthStore } from '../../store/authStore'
 import dayjs from 'dayjs'
+import 'dayjs/locale/es'
+import './DashboardPage.css'
 
-const { Text } = Typography
+dayjs.locale('es')
 
-const COLORS_PIE = ['#ef4444','#f59e0b','#3b82f6','#22c55e']
-const COLORS_BAR = ['#1d4ed8','#7e22ce','#c2410c','#0e7490']
+// Paleta consistente con tokens.css
+const COLORS = {
+  ink:   '#14110D',
+  acc:   '#B45309',
+  crit:  '#A8201A',
+  warn:  '#B45309',
+  info:  '#1E3A8A',
+  ok:    '#15633F',
+  plum:  '#6B21A8',
+  line:  '#E2DBC9',
+  muted: '#6B665C',
+}
 
+const PRIO_PALETTE  = [COLORS.crit, COLORS.warn, COLORS.info, COLORS.ok]
+const ESTADO_PALETTE = [COLORS.info, COLORS.plum, COLORS.warn, COLORS.crit]
+
+const greeting = () => {
+  const h = new Date().getHours()
+  if (h < 12) return 'Buenos días'
+  if (h < 19) return 'Buenas tardes'
+  return 'Buenas noches'
+}
+
+// ── Pill renderers ────────────────────────────────────────────────────
+const PRIO_MAP = {
+  critica: { lbl: 'Crítica', cls: 'crit' },
+  alta:    { lbl: 'Alta',    cls: 'warn' },
+  media:   { lbl: 'Media',   cls: 'info' },
+  baja:    { lbl: 'Baja',    cls: 'ok'   },
+}
+const ESTADO_CLS = {
+  abierto: 'info', asignado: 'info',
+  en_progreso: 'plum',
+  pendiente: 'warn',
+  escalado: 'crit',
+  resuelto: 'ok',
+  cerrado: 'muted',
+  cancelado: 'crit',
+}
+function PrioPill({ v }) {
+  const m = PRIO_MAP[v]; if (!m) return null
+  return <span className={`qpill ${m.cls}`}><span className="qpill-dot" />{m.lbl}</span>
+}
+function EstadoPill({ v }) {
+  const e = getEstado(v); if (!e) return null
+  const cls = ESTADO_CLS[v] || 'muted'
+  return <span className={`qpill ${cls}`}><span className="qpill-dot" />{e.label}</span>
+}
+function initials(name) {
+  if (!name) return '—'
+  return name.split(' ').map(s => s[0]).filter(Boolean).slice(0,2).join('').toUpperCase()
+}
+
+// ── Component ────────────────────────────────────────────────────────
 export default function DashboardPage() {
   const { usuario } = useAuthStore()
   const [stats,   setStats]   = useState({})
@@ -29,136 +88,207 @@ export default function DashboardPage() {
     }).finally(() => setLoading(false))
   }, [])
 
-  const dataPrioridad = [
+  const dataPrio = [
     { name: 'Crítica', value: tickets.filter(t => t.prioridad === 'critica').length },
     { name: 'Alta',    value: tickets.filter(t => t.prioridad === 'alta').length    },
     { name: 'Media',   value: tickets.filter(t => t.prioridad === 'media').length   },
     { name: 'Baja',    value: tickets.filter(t => t.prioridad === 'baja').length    },
   ]
+  const totalPrio = dataPrio.reduce((a, d) => a + d.value, 0)
 
   const dataEstado = [
-    { name: 'Abiertos',   cantidad: stats.abiertos    || 0 },
-    { name: 'En progreso',cantidad: stats.en_progreso || 0 },
-    { name: 'Pendientes', cantidad: stats.pendientes  || 0 },
-    { name: 'Escalados',  cantidad: stats.escalados   || 0 },
+    { name: 'Abiertos',    cantidad: stats.abiertos    || 0 },
+    { name: 'En progreso', cantidad: stats.en_progreso || 0 },
+    { name: 'Pendientes',  cantidad: stats.pendientes  || 0 },
+    { name: 'Escalados',   cantidad: stats.escalados   || 0 },
   ]
+
+  // serie sparkline ficticia (puedes reemplazarla por una llamada real al backend)
+  const sparkData = Array.from({ length: 10 }).map((_, i) => ({ x: i, y: 20 + Math.round(Math.sin(i)*8 + Math.random()*6 + i*2) }))
 
   const slaRate = stats.total > 0
     ? Math.round(((stats.total - (stats.vencidos_sla || 0)) / stats.total) * 100)
     : 100
 
-  const columnas = [
-    { title: 'Ticket', dataIndex: 'numero', width: 130,
-      render: v => <Text code style={{ fontSize: 11, color: '#1d4ed8' }}>{v}</Text> },
-    { title: 'Título', dataIndex: 'titulo',
-      render: v => <Text style={{ fontSize: 12 }} ellipsis>{v}</Text> },
-    { title: 'Prioridad', dataIndex: 'prioridad', width: 90,
-      render: v => {
-        const MAP = { critica:'red', alta:'orange', media:'blue', baja:'green' }
-        const LAB = { critica:'Crítica', alta:'Alta', media:'Media', baja:'Baja' }
-        return <Tag color={MAP[v]} style={{ fontSize: 10 }}>{LAB[v]}</Tag>
-      }},
-    { title: 'Estado', dataIndex: 'estado', width: 120,
-      render: v => { const e = getEstado(v); return e ? <Badge status={e.color} text={e.label} /> : v } },
-    { title: 'Técnico', dataIndex: 'tecnico', width: 130,
-      render: v => v ? <Text style={{ fontSize: 11 }}>{v.nombre} {v.apellido}</Text>
-                     : <Text type="secondary" style={{ fontSize: 11 }}>Sin asignar</Text> },
-    { title: 'Creado', dataIndex: 'creado_en', width: 100,
-      render: v => <Text type="secondary" style={{ fontSize: 11 }}>{dayjs(v).format('DD/MM HH:mm')}</Text> },
-  ]
+  const today = dayjs().format('dddd, D [de] MMMM [de] YYYY')
 
   return (
     <Spin spinning={loading}>
-      {/* Saludo */}
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ fontSize: 20, fontWeight: 600, color: '#0f172a' }}>
-          Buenos días, {usuario?.nombre} 👋
-        </div>
-        <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
-          {dayjs().format('dddd, D [de] MMMM [de] YYYY')} · Oficina de Sistemas
-        </div>
+      {/* ── Page header (editorial) ──────────────────────────────── */}
+      <div className="qph">
+        <div className="qph-eyebrow"><span className="qph-dot" />Resumen operativo · {today}</div>
+        <h1 className="qph-title">
+          {greeting()}, <em>{usuario?.nombre}.</em>
+        </h1>
+        <p className="qph-sub">
+          Tienes <b>{stats.vencidos_sla || 0} tickets vencidos</b> y <b>{stats.por_vencer_sla || 0} por vencer SLA</b> en las próximas horas. {stats.resueltos_hoy ? `El equipo lleva ${stats.resueltos_hoy} tickets resueltos hoy.` : ''}
+        </p>
+        <span className="qph-rule" />
       </div>
 
-      {/* KPI Strip */}
-      <div className="kpi-strip" style={{ marginBottom: 20 }}>
-        {[
-          { label: 'TOTAL TICKETS',  value: stats.total || 0,            color: '#0f172a', sub: 'registrados'    },
-          { label: 'ABIERTOS',       value: stats.abiertos || 0,          color: '#1d4ed8', sub: 'sin atender'    },
-          { label: 'EN PROGRESO',    value: stats.en_progreso || 0,       color: '#7e22ce', sub: 'en atención'    },
-          { label: 'SIN ASIGNAR',    value: stats.sin_asignar || 0,       color: stats.sin_asignar > 0 ? '#f59e0b' : '#22c55e', sub: 'pendientes' },
-          { label: 'VENCIDOS SLA',   value: stats.vencidos_sla || 0,      color: stats.vencidos_sla > 0 ? '#ef4444' : '#22c55e', sub: 'críticos' },
-          { label: 'RESUELTOS HOY',  value: stats.resueltos_hoy || 0,     color: '#22c55e', sub: 'completados'   },
-          { label: 'CUMPL. SLA',     value: `${slaRate}%`,                color: slaRate >= 90 ? '#22c55e' : '#ef4444', sub: 'este mes' },
-          { label: 'NPS',            value: stats.nps_promedio ? `${stats.nps_promedio}/10` : '—', color: '#7e22ce', sub: 'satisfacción' },
-        ].map(s => (
-          <div key={s.label} className="kpi-card">
-            <div className="kpi-card-label">{s.label}</div>
-            <div className="kpi-card-value" style={{ color: s.color }}>{s.value}</div>
-            <div className="kpi-card-sub">{s.sub}</div>
+      {/* ── KPI Band editorial ────────────────────────────────────── */}
+      <div className="qkpi-band">
+        <div className="qkpi-hero">
+          <div className="qkpi-lbl">Tickets abiertos · ahora</div>
+          <div className="qkpi-hero-val">
+            <span>{stats.abiertos ?? 0}</span>
+            {stats.abiertos != null && (
+              <span className="qkpi-delta">
+                {(stats.en_progreso || 0)} en atención · {(stats.sin_asignar || 0)} sin asignar
+              </span>
+            )}
           </div>
-        ))}
+          <div className="qkpi-hero-spark">
+            <ResponsiveContainer width="100%" height={42}>
+              <AreaChart data={sparkData} margin={{ top: 4, bottom: 4 }}>
+                <defs>
+                  <linearGradient id="qSpark" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%"  stopColor={COLORS.acc} stopOpacity={0.5}/>
+                    <stop offset="100%" stopColor={COLORS.acc} stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <Area type="monotone" dataKey="y" stroke={COLORS.ink} fill="url(#qSpark)"
+                  strokeWidth={1.5} dot={false} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <KpiMini lbl="Resueltos hoy"  val={stats.resueltos_hoy ?? 0}   sub="completados"     tone="ok"   />
+        <KpiMini lbl="Vencidos SLA"   val={stats.vencidos_sla ?? 0}    sub="críticos"        tone={(stats.vencidos_sla || 0) > 0 ? 'crit' : 'ok'} />
+        <KpiMini lbl="Cumpl. SLA"     val={`${slaRate}%`}              sub="meta 90% · mes"  tone={slaRate >= 90 ? 'ok' : 'crit'} />
+        <KpiMini lbl="NPS"            val={stats.nps_promedio ? `${stats.nps_promedio}/10` : '—'} sub="satisfacción" />
       </div>
 
-      {/* Charts row */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-        <Col xs={24} md={14}>
-          <Card title="Estado de tickets" size="small"
-            extra={<Text type="secondary" style={{ fontSize: 11 }}>Tiempo real</Text>}>
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={dataEstado} barSize={32}>
-                <XAxis dataKey="name" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
-                <Tooltip
-                  contentStyle={{ border: '1px solid #e2e8f0', borderRadius: 6, fontSize: 11 }}
-                />
+      {/* ── Sección 01 — Pulso del día ────────────────────────────── */}
+      <div className="qsec-h">
+        <div className="qsec-l"><span className="qsec-num">01</span><em>Pulso del día</em></div>
+        <div className="qsec-r">
+          <span className="qsec-meta">Tiempo real · auto-actualizado</span>
+        </div>
+      </div>
+
+      <div className="qsplit-2">
+        <div className="qcard">
+          <div className="qcard-head">
+            <span className="qcard-title">Estado de tickets</span>
+            <span className="qcard-meta">últimas 24h</span>
+          </div>
+          <div className="qcard-body">
+            <ResponsiveContainer width="100%" height={210}>
+              <BarChart data={dataEstado} barSize={36} margin={{ top: 8, right: 8, bottom: 0, left: -16 }}>
+                <XAxis dataKey="name" tick={{ fontSize: 11, fill: COLORS.muted }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 11, fill: COLORS.muted }} axisLine={false} tickLine={false} />
+                <ReTooltip contentStyle={{ border: `1px solid ${COLORS.line}`, borderRadius: 6, fontSize: 11, fontFamily: 'var(--f-ui)' }} cursor={{ fill: 'rgba(180,83,9,0.06)' }} />
                 <Bar dataKey="cantidad" radius={[4,4,0,0]}>
                   {dataEstado.map((_, i) => (
-                    <Cell key={i} fill={COLORS_BAR[i % COLORS_BAR.length]} />
+                    <Cell key={i} fill={ESTADO_PALETTE[i % ESTADO_PALETTE.length]} />
                   ))}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
-          </Card>
-        </Col>
-        <Col xs={24} md={10}>
-          <Card title="Distribución por prioridad" size="small"
-            extra={<Text type="secondary" style={{ fontSize: 11 }}>Tickets activos</Text>}>
-            <ResponsiveContainer width="100%" height={200}>
+          </div>
+        </div>
+
+        <div className="qcard">
+          <div className="qcard-head">
+            <span className="qcard-title">Distribución por prioridad</span>
+            <span className="qcard-meta">tickets activos</span>
+          </div>
+          <div className="qcard-body qring-wrap">
+            <ResponsiveContainer width={150} height={150}>
               <PieChart>
-                <Pie data={dataPrioridad} dataKey="value" nameKey="name"
-                  cx="50%" cy="50%" outerRadius={70} innerRadius={35}
-                  label={({ name, percent }) => `${name} ${(percent*100).toFixed(0)}%`}
+                <Pie data={dataPrio} dataKey="value" nameKey="name"
+                  cx="50%" cy="50%" outerRadius={70} innerRadius={42}
+                  paddingAngle={1.5}
                   labelLine={false}
                 >
-                  {dataPrioridad.map((_, i) => (
-                    <Cell key={i} fill={COLORS_PIE[i]} />
+                  {dataPrio.map((_, i) => (
+                    <Cell key={i} fill={PRIO_PALETTE[i]} stroke="var(--bg-surface)" strokeWidth={2}/>
                   ))}
                 </Pie>
-                <Tooltip contentStyle={{ border: '1px solid #e2e8f0', borderRadius: 6, fontSize: 11 }} />
               </PieChart>
             </ResponsiveContainer>
-          </Card>
-        </Col>
-      </Row>
+            <div className="qring-legend">
+              {dataPrio.map((d, i) => (
+                <div key={d.name} className="qring-row">
+                  <span className="qring-sw" style={{ background: PRIO_PALETTE[i] }} />
+                  <span className="qring-lbl">{d.name}</span>
+                  <span className="qring-n">{d.value}</span>
+                  <span className="qring-p">{totalPrio ? Math.round((d.value/totalPrio)*100) : 0}%</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
 
-      {/* Últimos tickets */}
-      <Card title="Tickets recientes" size="small"
-        extra={
-          <Text
-            style={{ fontSize: 11, color: '#1d4ed8', cursor: 'pointer' }}
-            onClick={() => window.location.href = '/tickets'}
-          >
-            Ver todos →
-          </Text>
-        }
-      >
-        <Table
-          dataSource={tickets} columns={columnas} rowKey="id"
-          pagination={false} size="small"
-          scroll={{ x: 700 }}
-          rowClassName={r => r.prioridad === 'critica' ? 'row-critica' : ''}
-        />
-      </Card>
+      {/* ── Sección 02 — Cola activa ───────────────────────────────── */}
+      <div className="qsec-h">
+        <div className="qsec-l"><span className="qsec-num">02</span><em>Cola activa</em></div>
+        <div className="qsec-r">
+          <a className="qsec-link" href="/tickets">Ver todos los tickets →</a>
+        </div>
+      </div>
+
+      <div className="qtbl-wrap">
+        <table className="qtbl">
+          <colgroup>
+            <col style={{ width: '13%' }}/>
+            <col/>
+            <col style={{ width: '10%' }}/>
+            <col style={{ width: '13%' }}/>
+            <col style={{ width: '17%' }}/>
+            <col style={{ width: '12%' }}/>
+          </colgroup>
+          <thead>
+            <tr>
+              <th>Nº de ticket</th>
+              <th>Título</th>
+              <th>Prio</th>
+              <th>Estado</th>
+              <th>Técnico</th>
+              <th>Creado</th>
+            </tr>
+          </thead>
+          <tbody>
+            {tickets.map(t => (
+              <tr key={t.id}
+                  className={t.prioridad === 'critica' ? 'is-critical' : ''}
+                  onClick={() => window.location.href = `/tickets`}>
+                <td><span className="qmono">{t.numero}</span></td>
+                <td><span className="qttl">{t.titulo}</span></td>
+                <td><PrioPill v={t.prioridad}/></td>
+                <td><EstadoPill v={t.estado}/></td>
+                <td>
+                  {t.tecnico
+                    ? <span className="qav-named">
+                        <span className="qav">{initials(`${t.tecnico.nombre} ${t.tecnico.apellido}`)}</span>
+                        <span>{t.tecnico.nombre} {t.tecnico.apellido}</span>
+                      </span>
+                    : <span className="qmuted">Sin asignar</span>}
+                </td>
+                <td><span className="qmuted qmono">{dayjs(t.creado_en).format('DD/MM HH:mm')}</span></td>
+              </tr>
+            ))}
+            {tickets.length === 0 && (
+              <tr><td colSpan="6" className="qempty">Sin tickets recientes</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <div style={{ height: 40 }} />
     </Spin>
+  )
+}
+
+function KpiMini({ lbl, val, sub, tone }) {
+  return (
+    <div className="qkpi-mini">
+      <div className="qkpi-lbl">{lbl}</div>
+      <div className={`qkpi-mini-val tone-${tone || 'neutral'}`}>{val}</div>
+      <div className="qkpi-mini-sub">{sub}</div>
+    </div>
   )
 }

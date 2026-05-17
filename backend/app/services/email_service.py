@@ -1,4 +1,5 @@
 import logging
+from datetime import date
 from typing import Optional, TYPE_CHECKING
 from mailjet_rest import Client
 from app.core.config import settings
@@ -237,6 +238,62 @@ class EmailService:
         return self._send(
             ticket.tecnico.email, nombre,
             f"[QHelpDesk] ❌ SLA vencido: {ticket.numero}", html,
+        )
+
+    # ── Inventario / Contratos ────────────────────────────────────────────────
+
+    def licencia_por_vencer(
+        self,
+        to_email: str,
+        to_name: str,
+        software: str,
+        dias: int,
+        fecha_vencimiento: date,
+    ) -> bool:
+        color = "#ff4d4f" if dias <= 7 else ("#fa8c16" if dias <= 15 else "#faad14")
+        cuerpo = (
+            _row("Software", f"<strong>{software}</strong>")
+            + _row("Vence en", f"<span style='color:{color};font-weight:700;'>{dias} días</span>")
+            + _row("Fecha", fecha_vencimiento.strftime("%d/%m/%Y"))
+        )
+        html = _base_html(
+            titulo=f"Licencia por vencer: {software}",
+            cuerpo=cuerpo,
+            boton_texto="Ver inventario",
+            boton_url=f"{_base_url()}/inventario",
+        )
+        return self._send(
+            to_email, to_name,
+            f"[QHelpDesk] ⚠️ Licencia por vencer ({dias}d): {software}", html,
+        )
+
+    def contrato_por_vencer(
+        self,
+        to_email: str,
+        to_name: str,
+        numero: str,
+        objeto: str,
+        proveedor: str,
+        dias: int,
+        fecha_fin: date,
+    ) -> bool:
+        color = "#ff4d4f" if dias <= 7 else ("#fa8c16" if dias <= 15 else "#faad14")
+        cuerpo = (
+            _row("Contrato", f"<strong>{numero}</strong>")
+            + _row("Objeto", objeto or "—")
+            + _row("Proveedor", proveedor)
+            + _row("Vence en", f"<span style='color:{color};font-weight:700;'>{dias} días</span>")
+            + _row("Fecha fin", fecha_fin.strftime("%d/%m/%Y"))
+        )
+        html = _base_html(
+            titulo=f"Contrato por vencer: {numero}",
+            cuerpo=cuerpo,
+            boton_texto="Ver contratos",
+            boton_url=f"{_base_url()}/inventario",
+        )
+        return self._send(
+            to_email, to_name,
+            f"[QHelpDesk] ⚠️ Contrato por vencer ({dias}d): {numero}", html,
         )
 
     # ── Compras ───────────────────────────────────────────────────────────────

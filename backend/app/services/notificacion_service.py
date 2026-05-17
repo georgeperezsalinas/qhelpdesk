@@ -160,6 +160,15 @@ class NotificacionService:
             url="/inventario",
         )
 
+    def contrato_por_vencer(self, numero: str, objeto: str, dias: int):
+        self.notificar_roles(
+            [RolUsuario.jefe, RolUsuario.especialista],
+            TipoNotificacion.contrato_por_vencer,
+            f"Contrato por vencer: {numero}",
+            f"El contrato {numero} vence en {dias} días. {objeto}".strip(),
+            url="/inventario",
+        )
+
     def backup_fallido(self, politica_nombre: str):
         self.notificar_roles(
             [RolUsuario.jefe, RolUsuario.especialista],

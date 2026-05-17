@@ -13,19 +13,19 @@ import {
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 import 'dayjs/locale/es'
-import { ticketService, getPrioridad, getEstado, ESTADOS, CATEGORIAS } from '../../services/ticketService'
+import { ticketService, getPrioridad, getEstado, CATEGORIAS } from '../../services/ticketService'
 
 dayjs.extend(relativeTime)
 dayjs.locale('es')
 
-const { Title, Text, Paragraph } = Typography
+const { Text, Paragraph } = Typography
 const { TextArea } = Input
 
-// ── TARJETA DE TICKET ─────────────────────────────────────────────────────────
+/* ══════════════════ TARJETA DE TICKET ══════════════════ */
 function TicketCard({ ticket, onVerDetalle, onCalificar }) {
   const p = getPrioridad(ticket.prioridad)
   const e = getEstado(ticket.estado)
-  const resuelto = ['resuelto', 'cerrado'].includes(ticket.estado)
+  const resuelto       = ['resuelto', 'cerrado'].includes(ticket.estado)
   const puedeCalificar = resuelto && !ticket.nps_enviado
 
   return (
@@ -33,87 +33,66 @@ function TicketCard({ ticket, onVerDetalle, onCalificar }) {
       size="small"
       hoverable
       style={{
-        marginBottom: 12,
-        borderLeft: `4px solid ${p?.color || '#d9d9d9'}`,
+        marginBottom: 8, borderRadius: 10,
+        border: '1px solid #f0f0f0',
+        borderLeft: `3px solid ${p?.color || '#d9d9d9'}`,
         cursor: 'default',
       }}
-      styles={{ body: { padding: '14px 16px' } }}
+      styles={{ body: { padding: '12px 14px' } }}
     >
-      <Row align="middle" gutter={16}>
+      <Row align="middle" gutter={12}>
         <Col flex="auto">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-            <Text code style={{ fontSize: 11 }}>{ticket.numero}</Text>
-            <Badge status={e?.color} text={e?.label} />
-            <Tag
-              style={{
-                background: p?.bg, color: p?.color,
-                border: `1px solid ${p?.color}`,
-                fontSize: 11, fontWeight: 600,
-              }}
-            >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5, flexWrap: 'wrap' }}>
+            <Text code style={{ fontSize: 10 }}>{ticket.numero}</Text>
+            <Badge status={e?.color} text={<span style={{ fontSize: 11 }}>{e?.label}</span>} />
+            <Tag style={{ background: p?.bg, color: p?.color, border: `1px solid ${p?.color}20`, fontSize: 10, fontWeight: 600, lineHeight: '18px' }}>
               {p?.label}
             </Tag>
-            {ticket.categoria && <Tag style={{ fontSize: 11 }}>{ticket.categoria}</Tag>}
+            {ticket.categoria && <Tag style={{ fontSize: 10, lineHeight: '18px' }}>{ticket.categoria}</Tag>}
           </div>
 
-          <Text strong style={{ fontSize: 14 }}>{ticket.titulo}</Text>
+          <Text style={{ fontSize: 13, fontWeight: 500, display: 'block', marginBottom: 5 }}>
+            {ticket.titulo}
+          </Text>
 
-          <div style={{ marginTop: 6, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              <ClockCircleOutlined style={{ marginRight: 4 }} />
-              Creado {dayjs(ticket.creado_en).fromNow()}
+          <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+            <Text type="secondary" style={{ fontSize: 11 }}>
+              <ClockCircleOutlined style={{ marginRight: 3 }} />
+              {dayjs(ticket.creado_en).fromNow()}
             </Text>
             {ticket.tecnico && (
-              <Text type="secondary" style={{ fontSize: 12 }}>
+              <Text type="secondary" style={{ fontSize: 11 }}>
                 Técnico: {ticket.tecnico.nombre} {ticket.tecnico.apellido}
               </Text>
             )}
             {ticket.sla_limite && !resuelto && (
-              <Text
-                style={{
-                  fontSize: 12,
-                  color: dayjs().isAfter(ticket.sla_limite) ? '#ff4d4f' : '#fa8c16',
-                }}
-              >
+              <Text style={{ fontSize: 11, color: dayjs().isAfter(ticket.sla_limite) ? '#cf1322' : '#d46b08' }}>
                 SLA: {dayjs(ticket.sla_limite).fromNow()}
               </Text>
             )}
             {resuelto && ticket.tiempo_resolucion_h && (
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                <CheckCircleOutlined style={{ marginRight: 4, color: '#52c41a' }} />
+              <Text type="secondary" style={{ fontSize: 11 }}>
+                <CheckCircleOutlined style={{ marginRight: 3, color: '#52c41a' }} />
                 Resuelto en {ticket.tiempo_resolucion_h}h
               </Text>
             )}
           </div>
 
-          {/* NPS ya enviado */}
           {ticket.nps_puntuacion && (
-            <div style={{ marginTop: 6 }}>
-              <Rate disabled value={Math.round(ticket.nps_puntuacion / 2)} count={5} style={{ fontSize: 14 }} />
-              <Text type="secondary" style={{ fontSize: 11, marginLeft: 6 }}>
-                Tu calificación: {ticket.nps_puntuacion}/10
-              </Text>
+            <div style={{ marginTop: 5 }}>
+              <Rate disabled value={Math.round(ticket.nps_puntuacion / 2)} count={5} style={{ fontSize: 12 }} />
+              <Text type="secondary" style={{ fontSize: 10, marginLeft: 6 }}>{ticket.nps_puntuacion}/10</Text>
             </div>
           )}
         </Col>
 
         <Col flex="none">
-          <Space direction="vertical" size={6} style={{ alignItems: 'flex-end' }}>
-            <Button
-              size="small"
-              icon={<EyeOutlined />}
-              onClick={() => onVerDetalle(ticket)}
-            >
+          <Space direction="vertical" size={4} style={{ alignItems: 'flex-end' }}>
+            <Button size="small" icon={<EyeOutlined />} onClick={() => onVerDetalle(ticket)} style={{ fontSize: 11 }}>
               Ver detalle
             </Button>
             {puedeCalificar && (
-              <Button
-                size="small"
-                icon={<StarOutlined />}
-                type="primary"
-                ghost
-                onClick={() => onCalificar(ticket)}
-              >
+              <Button size="small" icon={<StarOutlined />} type="primary" ghost onClick={() => onCalificar(ticket)} style={{ fontSize: 11 }}>
                 Calificar
               </Button>
             )}
@@ -124,7 +103,7 @@ function TicketCard({ ticket, onVerDetalle, onCalificar }) {
   )
 }
 
-// ── MODAL DETALLE ─────────────────────────────────────────────────────────────
+/* ══════════════════ MODAL DETALLE ══════════════════ */
 function ModalDetalle({ ticket, onClose, onNuevoComentario }) {
   const [comentarios, setComentarios] = useState([])
   const [loading, setLoading]         = useState(false)
@@ -158,109 +137,70 @@ function ModalDetalle({ ticket, onClose, onNuevoComentario }) {
   const e = getEstado(ticket.estado)
 
   return (
-    <Modal
-      open={!!ticket}
-      onCancel={onClose}
-      footer={null}
-      width={620}
-      title={
-        <Space>
-          <Text code>{ticket.numero}</Text>
-          <Badge status={e?.color} text={e?.label} />
-        </Space>
-      }
+    <Modal open={!!ticket} onCancel={onClose} footer={null} width={620}
+      title={<Space><Text code>{ticket.numero}</Text><Badge status={e?.color} text={e?.label} /></Space>}
     >
-      <div style={{ borderLeft: `3px solid ${p?.color}`, paddingLeft: 12, marginBottom: 16 }}>
-        <Title level={5} style={{ margin: 0 }}>{ticket.titulo}</Title>
-        <Space style={{ marginTop: 6 }}>
-          <Tag style={{ background: p?.bg, color: p?.color, border: `1px solid ${p?.color}` }}>
-            {p?.label}
-          </Tag>
-          {ticket.categoria && <Tag>{ticket.categoria}</Tag>}
-        </Space>
+      <div style={{ borderLeft: `3px solid ${p?.color}`, background: `${p?.color}08`, borderRadius: '0 8px 8px 0', padding: '10px 12px 10px 14px', marginBottom: 14 }}>
+        <Text strong style={{ fontSize: 14 }}>{ticket.titulo}</Text>
+        <div style={{ marginTop: 5 }}>
+          <Space size={5}>
+            <Tag style={{ background: p?.bg, color: p?.color, border: `1px solid ${p?.color}30`, fontSize: 10 }}>{p?.label}</Tag>
+            {ticket.categoria && <Tag style={{ fontSize: 10 }}>{ticket.categoria}</Tag>}
+          </Space>
+        </div>
       </div>
 
       {ticket.descripcion && (
-        <Card size="small" title="Descripción" style={{ marginBottom: 16 }}>
-          <Paragraph style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{ticket.descripcion}</Paragraph>
+        <Card size="small" title={<span style={{ fontSize: 12 }}>Descripción</span>} style={{ marginBottom: 14, borderRadius: 8 }}>
+          <Paragraph style={{ whiteSpace: 'pre-wrap', margin: 0, fontSize: 13 }}>{ticket.descripcion}</Paragraph>
         </Card>
       )}
 
-      <Row gutter={12} style={{ marginBottom: 16 }}>
-        <Col span={8}>
-          <Card size="small">
-            <Statistic title="Creado" value={dayjs(ticket.creado_en).format('DD/MM/YY HH:mm')}
-              valueStyle={{ fontSize: 12 }} />
-          </Card>
-        </Col>
-        <Col span={8}>
-          <Card size="small">
-            <Statistic
-              title="SLA límite"
-              value={ticket.sla_limite ? dayjs(ticket.sla_limite).format('DD/MM/YY HH:mm') : '—'}
-              valueStyle={{ fontSize: 12 }}
-            />
-          </Card>
-        </Col>
-        <Col span={8}>
-          <Card size="small">
-            <Statistic
-              title="Técnico"
-              value={ticket.tecnico ? `${ticket.tecnico.nombre} ${ticket.tecnico.apellido}` : 'Por asignar'}
-              valueStyle={{ fontSize: 12 }}
-            />
-          </Card>
-        </Col>
+      <Row gutter={10} style={{ marginBottom: 14 }}>
+        {[
+          { title: 'Creado',  value: dayjs(ticket.creado_en).format('DD/MM/YY HH:mm') },
+          { title: 'SLA',     value: ticket.sla_limite ? dayjs(ticket.sla_limite).format('DD/MM/YY HH:mm') : '—' },
+          { title: 'Técnico', value: ticket.tecnico ? `${ticket.tecnico.nombre} ${ticket.tecnico.apellido}` : 'Por asignar' },
+        ].map(s => (
+          <Col span={8} key={s.title}>
+            <Card size="small" style={{ borderRadius: 8 }}>
+              <Statistic title={<span style={{ fontSize: 11 }}>{s.title}</span>} value={s.value} valueStyle={{ fontSize: 12 }} />
+            </Card>
+          </Col>
+        ))}
       </Row>
 
       {ticket.solucion && (
-        <Alert
-          type="success" showIcon
-          message="Solución aplicada"
-          description={ticket.solucion}
-          style={{ marginBottom: 16 }}
-        />
+        <Alert type="success" showIcon message="Solución aplicada" description={ticket.solucion} style={{ marginBottom: 14, borderRadius: 8 }} />
       )}
 
-      <Divider>Seguimiento</Divider>
+      <Divider style={{ margin: '0 0 14px', fontSize: 12 }}>Seguimiento</Divider>
 
       <Spin spinning={loading}>
         {comentarios.length === 0
-          ? <Text type="secondary">Sin comentarios aún.</Text>
+          ? <Text type="secondary" style={{ fontSize: 12 }}>Sin comentarios aún.</Text>
           : <Timeline items={comentarios.map(c => ({
               color: 'blue',
               children: (
-                <div style={{ background: '#f6f6f6', borderRadius: 6, padding: '8px 12px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                <div style={{ background: '#f8f9fa', borderRadius: 7, padding: '8px 11px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
                     <Text strong style={{ fontSize: 12 }}>{c.autor?.nombre} {c.autor?.apellido}</Text>
-                    <Text type="secondary" style={{ fontSize: 11 }}>
-                      {dayjs(c.creado_en).format('DD/MM/YYYY HH:mm')}
-                    </Text>
+                    <Text type="secondary" style={{ fontSize: 11 }}>{dayjs(c.creado_en).format('DD/MM/YYYY HH:mm')}</Text>
                   </div>
-                  <Text style={{ whiteSpace: 'pre-wrap', fontSize: 13 }}>{c.contenido}</Text>
+                  <Text style={{ whiteSpace: 'pre-wrap', fontSize: 12 }}>{c.contenido}</Text>
                 </div>
-              )
+              ),
             }))} />
         }
       </Spin>
 
-      {/* Responder */}
       {!['cerrado', 'cancelado'].includes(ticket.estado) && (
-        <div style={{ marginTop: 16 }}>
-          <TextArea
-            value={texto}
-            onChange={e => setTexto(e.target.value)}
+        <div style={{ marginTop: 14 }}>
+          <TextArea value={texto} onChange={e => setTexto(e.target.value)}
             placeholder="Añade información adicional o responde al técnico..."
-            rows={3}
-            style={{ marginBottom: 8 }}
-          />
-          <Button
-            type="primary"
-            icon={<MessageOutlined />}
-            loading={enviando}
-            onClick={enviarComentario}
-            disabled={!texto.trim()}
-          >
+            rows={3} style={{ marginBottom: 8, fontSize: 12, borderRadius: 8 }} />
+          <Button type="primary" icon={<MessageOutlined />} loading={enviando}
+            onClick={enviarComentario} disabled={!texto.trim()} style={{ fontSize: 12 }}>
             Enviar respuesta
           </Button>
         </div>
@@ -269,11 +209,10 @@ function ModalDetalle({ ticket, onClose, onNuevoComentario }) {
   )
 }
 
-// ── MODAL NPS ─────────────────────────────────────────────────────────────────
+/* ══════════════════ MODAL NPS ══════════════════ */
 function ModalNPS({ ticket, onClose, onCalificado }) {
-  const [form] = Form.useForm()
+  const [form]     = Form.useForm()
   const [enviando, setEnviando] = useState(false)
-  const [puntuacion, setPuntuacion] = useState(8)
 
   const enviar = async (values) => {
     setEnviando(true)
@@ -289,40 +228,26 @@ function ModalNPS({ ticket, onClose, onCalificado }) {
   if (!ticket) return null
 
   return (
-    <Modal
-      open={!!ticket}
-      onCancel={onClose}
-      title="Califica la atención recibida"
-      footer={null}
-      width={480}
-    >
-      <div style={{ textAlign: 'center', marginBottom: 24 }}>
-        <CheckCircleOutlined style={{ fontSize: 48, color: '#52c41a', marginBottom: 12 }} />
-        <Title level={5}>Tu ticket <Text code>{ticket.numero}</Text> fue resuelto</Title>
-        <Text type="secondary">¿Quedaste satisfecho con la atención recibida?</Text>
+    <Modal open={!!ticket} onCancel={onClose} title="Califica la atención recibida" footer={null} width={460}>
+      <div style={{ textAlign: 'center', marginBottom: 20 }}>
+        <CheckCircleOutlined style={{ fontSize: 42, color: '#52c41a', marginBottom: 10, display: 'block' }} />
+        <Text strong style={{ fontSize: 14 }}>Tu ticket <Text code>{ticket.numero}</Text> fue resuelto</Text><br />
+        <Text type="secondary" style={{ fontSize: 12 }}>¿Quedaste satisfecho con la atención recibida?</Text>
       </div>
-
-      <Form form={form} layout="vertical" onFinish={enviar}
-        initialValues={{ puntuacion: 8 }}>
-        <Form.Item name="puntuacion" label="Puntuación (1 = muy malo · 10 = excelente)"
-          rules={[{ required: true }]}>
-          <Select onChange={setPuntuacion}>
+      <Form form={form} layout="vertical" onFinish={enviar} initialValues={{ puntuacion: 8 }}>
+        <Form.Item name="puntuacion" label={<span style={{ fontSize: 12 }}>Puntuación (1–10)</span>} rules={[{ required: true }]}>
+          <Select>
             {[...Array(10)].map((_, i) => (
-              <Select.Option key={i+1} value={i+1}>
-                {i+1} {i+1 <= 6 ? '😞' : i+1 <= 8 ? '😊' : '🌟'}
-              </Select.Option>
+              <Select.Option key={i + 1} value={i + 1}>{i + 1} {i + 1 <= 6 ? '😞' : i + 1 <= 8 ? '😊' : '🌟'}</Select.Option>
             ))}
           </Select>
         </Form.Item>
-
-        <Form.Item name="comentario" label="Comentario (opcional)">
-          <TextArea rows={3} placeholder="¿Qué podemos mejorar? ¿Qué hicimos bien?" />
+        <Form.Item name="comentario" label={<span style={{ fontSize: 12 }}>Comentario (opcional)</span>}>
+          <TextArea rows={3} placeholder="¿Qué podemos mejorar? ¿Qué hicimos bien?" style={{ fontSize: 12 }} />
         </Form.Item>
-
         <Space>
-          <Button onClick={onClose}>Ahora no</Button>
-          <Button type="primary" htmlType="submit" loading={enviando}
-            icon={<StarOutlined />}>
+          <Button onClick={onClose} style={{ fontSize: 12 }}>Ahora no</Button>
+          <Button type="primary" htmlType="submit" loading={enviando} icon={<StarOutlined />} style={{ fontSize: 12 }}>
             Enviar calificación
           </Button>
         </Space>
@@ -331,16 +256,16 @@ function ModalNPS({ ticket, onClose, onCalificado }) {
   )
 }
 
-// ── PÁGINA PRINCIPAL ──────────────────────────────────────────────────────────
+/* ══════════════════ PÁGINA PRINCIPAL ══════════════════ */
 export default function MisTickets() {
-  const navigate   = useNavigate()
-  const [tickets,  setTickets]  = useState([])
-  const [loading,  setLoading]  = useState(true)
-  const [filtro,   setFiltro]   = useState('todos')
-  const [busqueda, setBusqueda] = useState('')
-  const [catFiltro,setCatFiltro]= useState(null)
-  const [detalle,  setDetalle]  = useState(null)
-  const [nps,      setNPS]      = useState(null)
+  const navigate    = useNavigate()
+  const [tickets,   setTickets]   = useState([])
+  const [loading,   setLoading]   = useState(true)
+  const [filtro,    setFiltro]    = useState('todos')
+  const [busqueda,  setBusqueda]  = useState('')
+  const [catFiltro, setCatFiltro] = useState(null)
+  const [detalle,   setDetalle]   = useState(null)
+  const [nps,       setNPS]       = useState(null)
 
   const cargar = async () => {
     setLoading(true)
@@ -354,161 +279,104 @@ export default function MisTickets() {
   useEffect(() => { cargar() }, [])
 
   const ticketsFiltrados = tickets.filter(t => {
-    // Filtro por estado
-    if (filtro === 'abiertos'  && ['resuelto','cerrado','cancelado'].includes(t.estado)) return false
-    if (filtro === 'resueltos' && !['resuelto','cerrado'].includes(t.estado)) return false
-    if (filtro === 'calificar' && !((['resuelto','cerrado'].includes(t.estado)) && !t.nps_enviado)) return false
-    // Filtro por categoría
+    if (filtro === 'abiertos'  && ['resuelto', 'cerrado', 'cancelado'].includes(t.estado)) return false
+    if (filtro === 'resueltos' && !['resuelto', 'cerrado'].includes(t.estado))              return false
+    if (filtro === 'calificar' && !(['resuelto', 'cerrado'].includes(t.estado) && !t.nps_enviado)) return false
     if (catFiltro && t.categoria !== catFiltro) return false
-    // Búsqueda de texto
     if (busqueda.trim()) {
       const q = busqueda.toLowerCase()
-      const enTitulo = t.titulo?.toLowerCase().includes(q)
-      const enNumero = t.numero?.toLowerCase().includes(q)
-      const enDesc   = t.descripcion?.toLowerCase().includes(q)
-      if (!enTitulo && !enNumero && !enDesc) return false
+      if (!t.titulo?.toLowerCase().includes(q) && !t.numero?.toLowerCase().includes(q) && !t.descripcion?.toLowerCase().includes(q)) return false
     }
     return true
   })
 
-  const pendientesCalificar = tickets.filter(t =>
-    ['resuelto','cerrado'].includes(t.estado) && !t.nps_enviado
-  ).length
-
-  // Categorías presentes en los tickets del usuario
+  const pendientesCalificar = tickets.filter(t => ['resuelto', 'cerrado'].includes(t.estado) && !t.nps_enviado).length
   const categoriasPresentes = [...new Set(tickets.map(t => t.categoria).filter(Boolean))]
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-        <Title level={4} style={{ margin: 0 }}>Mis tickets</Title>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+        <span style={{ fontSize: 13, fontWeight: 500, color: '#262626' }}>Mis tickets</span>
         <Space>
-          <Button icon={<ReloadOutlined />} onClick={cargar} loading={loading} />
-          <Button type="primary" icon={<PlusOutlined />}
+          <Button icon={<ReloadOutlined />} onClick={cargar} loading={loading} size="small" />
+          <Button type="primary" icon={<PlusOutlined />} size="small" style={{ fontSize: 12 }}
             onClick={() => navigate('/portal/nuevo-ticket')}>
             Nuevo ticket
           </Button>
         </Space>
       </div>
 
-      {/* Alerta de tickets por calificar */}
       {pendientesCalificar > 0 && (
-        <Alert
-          type="warning"
-          showIcon
-          icon={<StarOutlined />}
+        <Alert type="warning" showIcon icon={<StarOutlined />}
           message={`Tienes ${pendientesCalificar} ticket${pendientesCalificar > 1 ? 's' : ''} resuelto${pendientesCalificar > 1 ? 's' : ''} pendiente${pendientesCalificar > 1 ? 's' : ''} de calificar`}
-          action={
-            <Button size="small" onClick={() => setFiltro('calificar')}>
-              Ver ahora
-            </Button>
-          }
-          style={{ marginBottom: 16 }}
+          action={<Button size="small" onClick={() => setFiltro('calificar')}>Ver ahora</Button>}
+          style={{ marginBottom: 12, borderRadius: 8 }}
         />
       )}
 
-      {/* Estadísticas rápidas */}
-      <Row gutter={12} style={{ marginBottom: 16 }}>
+      <Row gutter={10} style={{ marginBottom: 12 }}>
         {[
-          { label: 'Total',    value: tickets.length,                                              color: undefined     },
-          { label: 'Abiertos', value: tickets.filter(t => !['resuelto','cerrado','cancelado'].includes(t.estado)).length, color: '#1677ff' },
-          { label: 'Resueltos',value: tickets.filter(t => ['resuelto','cerrado'].includes(t.estado)).length,              color: '#52c41a' },
-          { label: 'Por calificar', value: pendientesCalificar,                                    color: '#fa8c16'     },
+          { label: 'Total',         value: tickets.length,                                                                        color: undefined  },
+          { label: 'En proceso',    value: tickets.filter(t => !['resuelto', 'cerrado', 'cancelado'].includes(t.estado)).length,  color: '#1677ff'  },
+          { label: 'Resueltos',     value: tickets.filter(t => ['resuelto', 'cerrado'].includes(t.estado)).length,                color: '#52c41a'  },
+          { label: 'Por calificar', value: pendientesCalificar,                                                                   color: '#d46b08'  },
         ].map(s => (
-          <Col key={s.label} span={6}>
-            <Card size="small" style={{ textAlign: 'center' }}>
-              <Statistic title={s.label} value={s.value}
-                valueStyle={{ fontSize: 20, color: s.color }} />
+          <Col span={6} key={s.label}>
+            <Card size="small" style={{ borderRadius: 10, border: '1px solid #f0f0f0', textAlign: 'center' }} styles={{ body: { padding: '10px 12px' } }}>
+              <Statistic
+                title={<span style={{ fontSize: 10, color: '#8c8c8c', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{s.label}</span>}
+                value={s.value}
+                valueStyle={{ fontSize: 20, color: s.color || '#262626' }}
+              />
             </Card>
           </Col>
         ))}
       </Row>
 
-      {/* Buscador */}
-      <Input
-        placeholder="Buscar por número, título o descripción..."
-        prefix={<SearchOutlined style={{ color: '#bbb' }} />}
-        value={busqueda}
-        onChange={e => setBusqueda(e.target.value)}
-        allowClear
-        style={{ marginBottom: 12 }}
-      />
+      <Input placeholder="Buscar por número, título o descripción..." prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
+        value={busqueda} onChange={e => setBusqueda(e.target.value)} allowClear size="small"
+        style={{ marginBottom: 10, fontSize: 12 }} />
 
-      {/* Filtros de estado */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
-        <Space wrap>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
+        <Space size={4} wrap>
           {[
-            { key: 'todos',     label: 'Todos'          },
-            { key: 'abiertos',  label: 'En proceso'     },
-            { key: 'resueltos', label: 'Resueltos'       },
+            { key: 'todos',     label: 'Todos' },
+            { key: 'abiertos',  label: 'En proceso' },
+            { key: 'resueltos', label: 'Resueltos' },
             { key: 'calificar', label: '⭐ Por calificar' },
           ].map(f => (
-            <Button
-              key={f.key}
-              type={filtro === f.key ? 'primary' : 'default'}
-              size="small"
-              onClick={() => setFiltro(f.key)}
-            >
+            <Button key={f.key} type={filtro === f.key ? 'primary' : 'default'} size="small"
+              onClick={() => setFiltro(f.key)} style={{ fontSize: 11 }}>
               {f.label}
             </Button>
           ))}
         </Space>
-
-        {/* Filtro de categoría */}
         {categoriasPresentes.length > 0 && (
-          <Select
-            size="small"
-            allowClear
-            placeholder="Categoría"
-            style={{ minWidth: 140 }}
-            value={catFiltro}
-            onChange={v => setCatFiltro(v || null)}
-            options={categoriasPresentes.map(c => ({
-              value: c,
-              label: CATEGORIAS.find(x => x.value === c)?.label || c,
-            }))}
+          <Select size="small" allowClear placeholder="Categoría" style={{ minWidth: 130 }}
+            value={catFiltro} onChange={v => setCatFiltro(v || null)}
+            options={categoriasPresentes.map(c => ({ value: c, label: CATEGORIAS.find(x => x.value === c)?.label || c }))}
           />
         )}
       </div>
 
-      {/* Lista de tickets */}
       <Spin spinning={loading}>
         {ticketsFiltrados.length === 0
           ? (
-            <Empty
-              description={
-                filtro === 'todos'
-                  ? 'Aún no tienes tickets registrados'
-                  : 'No hay tickets en esta categoría'
-              }
-            >
-              <Button type="primary" icon={<PlusOutlined />}
+            <Empty description={filtro === 'todos' ? 'Aún no tienes tickets registrados' : 'No hay tickets en esta categoría'}>
+              <Button type="primary" icon={<PlusOutlined />} size="small" style={{ fontSize: 12 }}
                 onClick={() => navigate('/portal/nuevo-ticket')}>
                 Crear primer ticket
               </Button>
             </Empty>
           )
           : ticketsFiltrados.map(t => (
-            <TicketCard
-              key={t.id}
-              ticket={t}
-              onVerDetalle={setDetalle}
-              onCalificar={setNPS}
-            />
+            <TicketCard key={t.id} ticket={t} onVerDetalle={setDetalle} onCalificar={setNPS} />
           ))
         }
       </Spin>
 
-      <ModalDetalle
-        ticket={detalle}
-        onClose={() => setDetalle(null)}
-        onNuevoComentario={cargar}
-      />
-      <ModalNPS
-        ticket={nps}
-        onClose={() => setNPS(null)}
-        onCalificado={cargar}
-      />
+      <ModalDetalle ticket={detalle} onClose={() => setDetalle(null)} onNuevoComentario={cargar} />
+      <ModalNPS     ticket={nps}     onClose={() => setNPS(null)}     onCalificado={cargar} />
     </div>
   )
 }

@@ -1,19 +1,58 @@
-import { Form, Input, Button, Typography, message, Divider } from 'antd'
-import { UserOutlined, LockOutlined } from '@ant-design/icons'
+// ─────────────────────────────────────────────────────────────────────
+// src/pages/portal/LoginPage.jsx
+// Rediseño v2 — editorial + operacional
+// ─────────────────────────────────────────────────────────────────────
+//
+// REQUIERE: cargar las fuentes en tu index.html (una sola vez):
+//
+//   <link rel="preconnect" href="https://fonts.googleapis.com">
+//   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+//   <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+//
+// REQUIERE: el archivo LoginPage.css adjunto en la misma carpeta.
+
+import { useState } from 'react'
+import { Form, Input, Checkbox, message } from 'antd'
+import {
+  UserOutlined, LockOutlined, ArrowRightOutlined, GlobalOutlined,
+} from '@ant-design/icons'
 import { useNavigate, useLocation } from 'react-router-dom'
 import api from '../../services/api'
 import { useAuthStore } from '../../store/authStore'
+import './LoginPage.css'
 
-const { Text } = Typography
 const ROLES_INTERNOS = ['jefe', 'especialista', 'mesa_ayuda']
+
+// ── Iconos line (sustitutos a los emojis del diseño anterior) ──────────
+const LineIcon = ({ d, size = 14 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+    stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+    {d}
+  </svg>
+)
+const ICONS = {
+  ticket:    <LineIcon d={<><path d="M3 8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-2a2 2 0 0 0 0-4z"/><path d="M13 6v2M13 11v2M13 16v2"/></>} />,
+  inventory: <LineIcon d={<><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 12l9 4 9-4"/><path d="M3 17l9 4 9-4"/></>} />,
+  chart:     <LineIcon d={<><path d="M3 21h18"/><path d="M7 17v-6"/><path d="M12 17V7"/><path d="M17 17v-9"/></>} />,
+  bell:      <LineIcon d={<><path d="M6 8a6 6 0 0 1 12 0c0 7 3 7 3 9H3c0-2 3-2 3-9"/><path d="M10 21a2 2 0 0 0 4 0"/></>} />,
+}
+
+const FEATURES = [
+  { ic: ICONS.ticket,    t: 'Gestión de tickets con SLA automático' },
+  { ic: ICONS.inventory, t: 'Inventario TI y depreciación de activos' },
+  { ic: ICONS.chart,     t: 'Reportes Excel y PDF nivel ERP' },
+  { ic: ICONS.bell,      t: 'Notificaciones en tiempo real' },
+]
 
 export default function LoginPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const setAuth  = useAuthStore(s => s.setAuth)
   const [form]   = Form.useForm()
+  const [loading, setLoading] = useState(false)
 
   const onFinish = async (values) => {
+    setLoading(true)
     try {
       const fd = new FormData()
       fd.append('username', values.username)
@@ -27,109 +66,138 @@ export default function LoginPage() {
     } catch (err) {
       message.error(err.response?.data?.detail || 'Usuario o contraseña incorrectos')
       form.setFieldValue('password', '')
-    }
+    } finally { setLoading(false) }
   }
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', background: '#0f172a' }}>
+    <div className="lg-root">
 
-      {/* Panel izquierdo — branding (oculto en mobile vía CSS) */}
-      <div className="login-left" style={{
-        width: '45%', flexShrink: 0,
-        background: 'linear-gradient(160deg, #1e3a5f 0%, #1d4ed8 100%)',
-        display: 'flex', flexDirection: 'column',
-        justifyContent: 'center', padding: '60px',
-        position: 'relative', overflow: 'hidden',
-      }}>
-        <div style={{
-          position: 'absolute', width: 400, height: 400, borderRadius: '50%',
-          border: '1px solid rgba(255,255,255,0.06)', top: -100, right: -100,
-        }} />
-        <div style={{
-          position: 'absolute', width: 250, height: 250, borderRadius: '50%',
-          border: '1px solid rgba(255,255,255,0.06)', bottom: 40, left: -80,
-        }} />
-        <div style={{
-          width: 60, height: 60, borderRadius: 14,
-          background: 'rgba(255,255,255,0.1)',
-          border: '1px solid rgba(255,255,255,0.15)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 11, color: 'rgba(255,255,255,0.5)',
-          marginBottom: 32, textAlign: 'center',
-        }}>
-          LOGO
+      {/* ── Panel izquierdo: editorial ink ─────────────────────────── */}
+      <div className="lg-left">
+        <div className="lg-noise" />
+
+        <div className="lg-brand">
+          <div className="lg-mono">Q</div>
+          <div>
+            <div className="lg-wordmark">QHelpDesk</div>
+            <div className="lg-sublabel">Gov · Tech · Pro</div>
+          </div>
         </div>
-        <div style={{ color: '#fff', fontSize: 32, fontWeight: 700, lineHeight: 1.2, marginBottom: 12 }}>
-          QHELP DESK<br />
-          <span style={{ color: '#93c5fd' }}>ERP</span>
+
+        <div className="lg-hero">
+          <div className="lg-eyebrow"><span className="dot" />Versión 2.0 · 2026</div>
+          <h1 className="lg-headline">
+            Mesa de ayuda.<br/>
+            <em>Reimaginada</em> para<br/>
+            el sector público.
+          </h1>
+          <p className="lg-lede">
+            Una sola plataforma para soporte, inventario, mantenimiento, infraestructura
+            y telefonía — diseñada para los técnicos que viven en el sistema todo el día.
+          </p>
+
+          <div className="lg-features">
+            {FEATURES.map(f => (
+              <div key={f.t} className="lg-feat">
+                <span className="lg-feat-ic">{f.ic}</span>
+                <span>{f.t}</span>
+              </div>
+            ))}
+          </div>
         </div>
-        <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: 14, lineHeight: 1.7, maxWidth: 320 }}>
-          Sistema integral de mesa de ayuda para entidades del sector público.
-        </div>
-        <div style={{ marginTop: 48, display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {[
-            { icon: '🎫', text: 'Gestión de tickets con SLA automático'     },
-            { icon: '💻', text: 'Inventario TI y depreciación de activos'   },
-            { icon: '📊', text: 'Reportes Excel y PDF nivel ERP'            },
-            { icon: '🔔', text: 'Notificaciones en tiempo real'             },
-          ].map(f => (
-            <div key={f.icon} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ fontSize: 16 }}>{f.icon}</span>
-              <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13 }}>{f.text}</Text>
-            </div>
-          ))}
+
+        <div className="lg-stats">
+          <div className="lg-stat">
+            <div className="lg-stat-v">12,840</div>
+            <div className="lg-stat-l">tickets atendidos en 2025</div>
+          </div>
+          <div className="lg-stat">
+            <div className="lg-stat-v">94<span style={{ fontSize: 18 }}>%</span></div>
+            <div className="lg-stat-l">cumplimiento de SLA</div>
+          </div>
+          <div className="lg-stat">
+            <div className="lg-stat-v">8.4<span style={{ fontSize: 18 }}>/10</span></div>
+            <div className="lg-stat-l">satisfacción del usuario</div>
+          </div>
         </div>
       </div>
 
-      {/* Panel derecho — formulario */}
-      <div className="login-right" style={{
-        flex: 1, display: 'flex', alignItems: 'center',
-        justifyContent: 'center', background: '#fff', padding: '40px',
-      }}>
-        <div style={{ width: '100%', maxWidth: 380 }}>
-          <div style={{ marginBottom: 32 }}>
-            <div style={{ fontSize: 24, fontWeight: 700, color: '#0f172a', marginBottom: 6 }}>
-              Iniciar sesión
+      {/* ── Panel derecho: formulario ──────────────────────────────── */}
+      <div className="lg-right">
+        <div className="lg-form-wrap">
+          <div className="lg-form-head">
+            <div className="lg-form-eyebrow">Acceso institucional</div>
+            <div className="lg-form-title">Iniciar <em>sesión</em></div>
+            <div className="lg-form-sub">
+              Ingresa con tus credenciales corporativas para acceder a la mesa de ayuda.
             </div>
-            <Text type="secondary" style={{ fontSize: 13 }}>
-              Ingresa tus credenciales institucionales
-            </Text>
           </div>
 
-          <Form form={form} layout="vertical" onFinish={onFinish} size="large">
-            <Form.Item name="username" label="Usuario"
-              rules={[{ required: true, message: 'Ingresa tu usuario' }]}>
-              <Input prefix={<UserOutlined style={{ color: '#94a3b8' }} />}
-                placeholder="usuario.apellido" autoFocus
-                style={{ borderRadius: 8, height: 44 }} />
+          <Form form={form} layout="vertical" onFinish={onFinish}
+            className="lg-form" requiredMark={false}>
+
+            <Form.Item name="username"
+              label={<span className="lg-flbl">Usuario</span>}
+              rules={[{ required: true, message: 'Ingresa tu usuario' }]}
+              style={{ marginBottom: 14 }}>
+              <Input
+                size="large"
+                prefix={<UserOutlined style={{ color: 'var(--ink-3)' }} />}
+                placeholder="usuario.apellido"
+                className="lg-ant-input"
+                autoFocus
+              />
             </Form.Item>
-            <Form.Item name="password" label="Contraseña"
-              rules={[{ required: true, message: 'Ingresa tu contraseña' }]}>
-              <Input.Password prefix={<LockOutlined style={{ color: '#94a3b8' }} />}
-                placeholder="••••••••"
-                style={{ borderRadius: 8, height: 44 }} />
+
+            <Form.Item name="password"
+              label={
+                <div className="lg-label-row">
+                  <span className="lg-flbl">Contraseña</span>
+                  <a className="lg-link" onClick={(e) => e.preventDefault()} href="#">
+                    ¿Olvidaste tu contraseña?
+                  </a>
+                </div>
+              }
+              rules={[{ required: true, message: 'Ingresa tu contraseña' }]}
+              style={{ marginBottom: 14 }}>
+              <Input.Password
+                size="large"
+                prefix={<LockOutlined style={{ color: 'var(--ink-3)' }} />}
+                placeholder="••••••••••"
+                className="lg-ant-input"
+              />
             </Form.Item>
-            <Form.Item style={{ marginTop: 8 }}>
-              <Button type="primary" htmlType="submit" block style={{
-                height: 46, borderRadius: 8,
-                background: '#1d4ed8', border: 'none',
-                fontSize: 14, fontWeight: 600,
-              }}>
-                Ingresar al sistema
-              </Button>
+
+            <Form.Item name="remember" valuePropName="checked" initialValue={true}
+              style={{ marginBottom: 18 }}>
+              <Checkbox className="lg-check-ant">
+                Mantener mi sesión iniciada en este equipo
+              </Checkbox>
             </Form.Item>
+
+            <button type="submit" className="lg-btn-primary" disabled={loading}>
+              {loading ? 'Ingresando…' : 'Ingresar al sistema'}
+              <ArrowRightOutlined />
+            </button>
+
+            <div className="lg-divider"><span>o</span></div>
+
+            <button type="button" className="lg-btn-secondary">
+              <GlobalOutlined />
+              Continuar con SSO institucional
+            </button>
           </Form>
 
-          <Divider style={{ margin: '24px 0' }} />
-          <div style={{ textAlign: 'center' }}>
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              ¿Problemas para ingresar? Contacta a la Oficina de Sistemas
-            </Text>
+          <div className="lg-help">
+            ¿Problemas para ingresar? Contacta a la{' '}
+            <a className="lg-link" href="#" onClick={(e) => e.preventDefault()}>
+              Oficina de Sistemas
+            </a>{' '}
+            o llama al anexo <span className="lg-mono">4321</span>.
           </div>
-          <div style={{ marginTop: 40, textAlign: 'center' }}>
-            <Text style={{ fontSize: 10, color: '#cbd5e1' }}>
-              QHELP DESK ERP v1.0 · GOV TECH PRO
-            </Text>
+
+          <div className="lg-foot">
+            <span>QHelpDesk · v2.0.4</span>
           </div>
         </div>
       </div>

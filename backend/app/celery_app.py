@@ -5,7 +5,7 @@ celery_app = Celery(
     "qhelpdesk",
     broker=settings.REDIS_URL,
     backend=settings.REDIS_URL,
-    include=["app.tasks.sla_tasks"],
+    include=["app.tasks.sla_tasks", "app.tasks.vencimiento_tasks"],
 )
 
 celery_app.conf.update(
@@ -20,6 +20,11 @@ celery_app.conf.update(
         "verificar-sla": {
             "task": "app.tasks.sla_tasks.verificar_sla",
             "schedule": 900.0,  # cada 15 minutos
+        },
+        "verificar-vencimientos": {
+            "task": "app.tasks.vencimiento_tasks.verificar_vencimientos",
+            "schedule": 86400.0,  # una vez al día
+            "options": {"expires": 3600},
         },
     },
 )

@@ -1,0 +1,341 @@
+/* ─────────────────────────────────────────────────────────────────────
+   src/pages/portal/LoginPage.css
+   Estilos del rediseño v2 del login.
+   Importado desde LoginPage.jsx.
+   Requiere que tokens.css esté cargado globalmente.
+   ───────────────────────────────────────────────────────────────────── */
+
+.lg-root {
+  position: fixed; inset: 0;
+  display: grid;
+  grid-template-columns: 1.05fr 1fr;
+  background: var(--bg-base);
+  font-family: var(--f-ui);
+  color: var(--ink-1);
+  -webkit-font-smoothing: antialiased;
+}
+@media (max-width: 880px) {
+  .lg-root { grid-template-columns: 1fr; }
+  .lg-left { display: none !important; }
+}
+
+/* ═══ LEFT — editorial ink ═══════════════════════════════════════════ */
+.lg-left {
+  background: var(--sb-bg);
+  color: rgba(244,239,227,0.78);
+  padding: 56px 64px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  position: relative;
+  overflow: hidden;
+}
+.lg-noise {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 800px 600px at 80% 10%, rgba(180,83,9,0.20), transparent 60%),
+    radial-gradient(ellipse 600px 400px at 0% 100%, rgba(244,239,227,0.04), transparent 70%);
+  pointer-events: none;
+}
+.lg-left > *:not(.lg-noise) { position: relative; z-index: 1; }
+
+.lg-brand { display: flex; align-items: baseline; gap: 14px; }
+.lg-mono {
+  font-family: var(--f-display);
+  font-style: italic;
+  font-size: 48px;
+  line-height: 0.85;
+  color: #F4EFE3;
+  letter-spacing: -0.04em;
+}
+.lg-wordmark {
+  font-size: 13px; font-weight: 600;
+  letter-spacing: 0.18em; text-transform: uppercase;
+  color: #F4EFE3;
+}
+.lg-sublabel {
+  font-size: 10px; font-weight: 500;
+  letter-spacing: 0.18em; text-transform: uppercase;
+  color: rgba(244,239,227,0.35);
+  margin-top: 3px;
+}
+
+.lg-hero { max-width: 480px; }
+.lg-eyebrow {
+  font-size: 10px; font-weight: 600;
+  letter-spacing: 0.18em; text-transform: uppercase;
+  color: rgba(244,239,227,0.55);
+  margin-bottom: 24px;
+}
+.lg-eyebrow .dot {
+  display: inline-block; width: 5px; height: 5px; border-radius: 50%;
+  background: var(--acc); margin-right: 8px; vertical-align: middle;
+}
+.lg-headline {
+  font-family: var(--f-display);
+  font-size: 56px;
+  line-height: 1.04;
+  font-weight: 400;
+  letter-spacing: -0.025em;
+  color: #F4EFE3;
+  margin: 0 0 22px;
+}
+.lg-headline em { color: var(--acc); font-style: italic; }
+.lg-lede {
+  font-size: 14px;
+  line-height: 1.65;
+  color: rgba(244,239,227,0.62);
+  max-width: 440px;
+  margin: 0 0 36px;
+}
+
+.lg-features {
+  display: flex; flex-direction: column;
+  gap: 12px;
+  padding-top: 22px;
+  border-top: 1px solid rgba(244,239,227,0.10);
+}
+.lg-feat {
+  display: flex; align-items: center; gap: 12px;
+  font-size: 12.5px;
+  color: rgba(244,239,227,0.78);
+}
+.lg-feat-ic {
+  width: 24px; height: 24px;
+  border-radius: 6px;
+  background: rgba(244,239,227,0.06);
+  border: 1px solid rgba(244,239,227,0.10);
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--acc);
+  flex-shrink: 0;
+}
+
+.lg-stats {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  padding-top: 28px;
+  border-top: 1px solid rgba(244,239,227,0.10);
+}
+.lg-stat-v {
+  font-family: var(--f-display);
+  font-size: 34px;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: #F4EFE3;
+}
+.lg-stat-l {
+  font-size: 10.5px;
+  color: rgba(244,239,227,0.45);
+  margin-top: 6px;
+  letter-spacing: 0.02em;
+  line-height: 1.4;
+}
+
+/* ═══ RIGHT — form ═══════════════════════════════════════════════════ */
+.lg-right {
+  background: var(--bg-canvas);
+  display: flex; align-items: center; justify-content: center;
+  padding: 40px;
+  position: relative;
+}
+.lg-right::before {
+  content: ""; position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 600px 500px at 100% 0%, rgba(180,83,9,0.06), transparent 60%);
+  pointer-events: none;
+}
+.lg-form-wrap {
+  width: 100%; max-width: 400px;
+  position: relative; z-index: 1;
+}
+
+.lg-form-head { margin-bottom: 32px; }
+.lg-form-eyebrow {
+  font-size: 10px; font-weight: 600;
+  letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--ink-3);
+  margin-bottom: 14px;
+}
+.lg-form-title {
+  font-family: var(--f-display);
+  font-size: 46px;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--ink-1);
+}
+.lg-form-title em { font-style: italic; }
+.lg-form-sub {
+  font-size: 13px; color: var(--ink-3);
+  margin-top: 14px;
+  line-height: 1.55;
+}
+
+.lg-flbl {
+  font-size: 11px; font-weight: 600;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--ink-2);
+}
+.lg-label-row {
+  display: flex; justify-content: space-between; align-items: baseline;
+  width: 100%;
+}
+.lg-link {
+  font-size: 11.5px;
+  color: var(--acc);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  font-weight: 500;
+}
+.lg-link:hover { border-bottom-color: var(--acc); color: var(--acc); }
+
+/* ── Override ant inputs dentro del login ────────────────────────── */
+.lg-form .ant-form-item-label > label {
+  width: 100%;
+  height: auto;
+  margin-bottom: 6px;
+}
+.lg-form .ant-form-item-label > label::after { display: none; }
+
+.lg-form .lg-ant-input,
+.lg-form .lg-ant-input .ant-input,
+.lg-form .lg-ant-input.ant-input-affix-wrapper,
+.lg-form .ant-input-password.lg-ant-input {
+  height: 46px;
+  background: var(--bg-surface);
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius-sm);
+  font-family: var(--f-ui);
+  font-size: 14px;
+  color: var(--ink-1);
+  box-shadow: none;
+}
+.lg-form .lg-ant-input:hover,
+.lg-form .lg-ant-input.ant-input-affix-wrapper:hover {
+  border-color: var(--ink-4);
+}
+.lg-form .lg-ant-input:focus-within,
+.lg-form .lg-ant-input.ant-input-affix-wrapper-focused {
+  border-color: var(--ink-2) !important;
+  box-shadow: 0 0 0 3px rgba(180,83,9,0.12) !important;
+}
+.lg-form .lg-ant-input .ant-input { background: transparent; box-shadow: none; }
+.lg-form .lg-ant-input .ant-input::placeholder { color: var(--ink-4); }
+.lg-form .lg-ant-input .anticon { color: var(--ink-3); font-size: 15px; }
+
+/* ── Inner <input> dentro de affix-wrapper (usuario + contraseña) ───
+   Reset completo del fondo y elimina la "caja interior" visible.
+   También neutraliza el amarillo del autofill de Chrome/Edge.        */
+.lg-form .lg-ant-input input,
+.lg-form .lg-ant-input .ant-input,
+.lg-form .lg-ant-input .ant-input-password input {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  outline: none !important;
+  height: auto !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  color: var(--ink-1);
+}
+
+/* Autofill (Chrome / Edge / Safari) — usar nuestros colores */
+.lg-form .lg-ant-input input:-webkit-autofill,
+.lg-form .lg-ant-input input:-webkit-autofill:hover,
+.lg-form .lg-ant-input input:-webkit-autofill:focus,
+.lg-form .lg-ant-input input:-webkit-autofill:active {
+  -webkit-text-fill-color: var(--ink-1) !important;
+  -webkit-box-shadow: 0 0 0 1000px var(--bg-surface) inset !important;
+  box-shadow: 0 0 0 1000px var(--bg-surface) inset !important;
+  caret-color: var(--ink-1);
+  transition: background-color 9999s ease-out 0s;
+  border-radius: 0 !important;
+}
+
+/* Quitar la línea/sombra del wrapper interno del Input.Password */
+.lg-form .ant-input-password .ant-input-suffix { margin-inline-start: 0; }
+.lg-form .ant-input-affix-wrapper > input.ant-input { padding-block: 0; }
+
+/* Checkbox */
+.lg-form .lg-check-ant { font-size: 12px; color: var(--ink-2); }
+.lg-form .lg-check-ant .ant-checkbox-inner {
+  border-radius: 3px;
+  border-color: var(--ink-4);
+  background: var(--bg-surface);
+}
+.lg-form .lg-check-ant .ant-checkbox-checked .ant-checkbox-inner {
+  background: var(--ink-1);
+  border-color: var(--ink-1);
+}
+.lg-form .lg-check-ant .ant-checkbox-checked .ant-checkbox-inner::after {
+  border-color: #F4EFE3;
+}
+
+/* Botones */
+.lg-btn-primary {
+  width: 100%;
+  height: 48px;
+  background: var(--ink-1);
+  color: #F4EFE3;
+  border: 0;
+  border-radius: var(--radius-sm);
+  font-family: var(--f-ui);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+  transition: background 0.12s, transform 0.06s;
+}
+.lg-btn-primary:hover:not(:disabled) { background: #000; }
+.lg-btn-primary:active:not(:disabled) { transform: translateY(1px); }
+.lg-btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.lg-divider {
+  text-align: center;
+  font-size: 11px;
+  color: var(--ink-3);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  position: relative;
+  margin: 16px 0;
+}
+.lg-divider::before, .lg-divider::after {
+  content: ""; position: absolute; top: 50%;
+  width: calc(50% - 18px); height: 1px; background: var(--line-1);
+}
+.lg-divider::before { left: 0; }
+.lg-divider::after  { right: 0; }
+
+.lg-btn-secondary {
+  width: 100%;
+  height: 44px;
+  background: var(--bg-surface);
+  color: var(--ink-1);
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius-sm);
+  font-family: var(--f-ui);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+}
+.lg-btn-secondary:hover { background: var(--bg-sunken); border-color: var(--ink-5); }
+
+.lg-help {
+  margin-top: 28px;
+  padding-top: 22px;
+  border-top: 1px solid var(--line-2);
+  font-size: 12px;
+  color: var(--ink-3);
+  line-height: 1.6;
+}
+.lg-mono { font-family: var(--f-mono); }
+
+.lg-foot {
+  margin-top: 18px;
+  display: flex; align-items: center;
+  font-size: 10.5px;
+  color: var(--ink-4);
+  letter-spacing: 0.04em;
+  font-family: var(--f-mono);
+}

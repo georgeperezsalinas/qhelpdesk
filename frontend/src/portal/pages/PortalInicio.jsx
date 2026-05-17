@@ -5,40 +5,58 @@ import {
   PlusCircleOutlined, FileTextOutlined, LaptopOutlined,
   WifiOutlined, MailOutlined, PrinterOutlined, LockOutlined,
   PhoneOutlined, SafetyOutlined, QuestionCircleOutlined,
-  ClockCircleOutlined, CheckCircleOutlined, BookOutlined, SearchOutlined,
+  ClockCircleOutlined, CheckCircleOutlined, BookOutlined,
+  SearchOutlined, ArrowRightOutlined,
 } from '@ant-design/icons'
 import { useAuthStore } from '../../store/authStore'
 
-const { Title, Text, Paragraph } = Typography
+const { Text } = Typography
 
+/* ── sin cambios en la data ── */
 const CATEGORIAS_RAPIDAS = [
-  { icon: <LaptopOutlined />,       label: 'PC / Laptop',     categoria: 'hardware',      color: '#1677ff' },
-  { icon: <PrinterOutlined />,      label: 'Impresora',       categoria: 'impresora',     color: '#52c41a' },
-  { icon: <WifiOutlined />,         label: 'Red / Internet',  categoria: 'red',           color: '#fa8c16' },
-  { icon: <MailOutlined />,         label: 'Correo',          categoria: 'correo',        color: '#eb2f96' },
-  { icon: <LockOutlined />,         label: 'Acceso / Clave',  categoria: 'acceso',        color: '#722ed1' },
-  { icon: <SafetyOutlined />,       label: 'VPN',             categoria: 'vpn',           color: '#13c2c2' },
-  { icon: <PhoneOutlined />,        label: 'Telefonía',       categoria: 'telefonia',     color: '#fa541c' },
-  { icon: <QuestionCircleOutlined />,label: 'Otro',           categoria: 'otro',          color: '#8c8c8c' },
+  { icon: <LaptopOutlined />,        label: 'PC / Laptop',    categoria: 'hardware',   color: '#1677ff', bg: '#e6f4ff' },
+  { icon: <PrinterOutlined />,       label: 'Impresora',      categoria: 'impresora',  color: '#52c41a', bg: '#f6ffed' },
+  { icon: <WifiOutlined />,          label: 'Red / Internet', categoria: 'red',        color: '#fa8c16', bg: '#fff7e6' },
+  { icon: <MailOutlined />,          label: 'Correo',         categoria: 'correo',     color: '#eb2f96', bg: '#fff0f6' },
+  { icon: <LockOutlined />,          label: 'Acceso / Clave', categoria: 'acceso',     color: '#722ed1', bg: '#f9f0ff' },
+  { icon: <SafetyOutlined />,        label: 'VPN',            categoria: 'vpn',        color: '#13c2c2', bg: '#e6fffb' },
+  { icon: <PhoneOutlined />,         label: 'Telefonía',      categoria: 'telefonia',  color: '#fa541c', bg: '#fff2e8' },
+  { icon: <QuestionCircleOutlined />,label: 'Otro',           categoria: 'otro',       color: '#8c8c8c', bg: '#f5f5f5' },
 ]
 
 const PASOS = [
-  { icon: <PlusCircleOutlined style={{ fontSize: 24, color: '#1677ff' }} />,
-    titulo: '1. Crea tu ticket', desc: 'Describe tu problema y selecciona la categoría correspondiente.' },
-  { icon: <ClockCircleOutlined style={{ fontSize: 24, color: '#fa8c16' }} />,
-    titulo: '2. Se asigna un técnico', desc: 'El sistema asigna automáticamente al técnico más adecuado.' },
-  { icon: <CheckCircleOutlined style={{ fontSize: 24, color: '#52c41a' }} />,
-    titulo: '3. Resolución y cierre', desc: 'Recibes notificación cuando tu ticket es resuelto.' },
+  { icon: <PlusCircleOutlined />,    color: '#1677ff', titulo: 'Crea tu ticket',       desc: 'Describe tu problema y selecciona la categoría.' },
+  { icon: <ClockCircleOutlined />,   color: '#fa8c16', titulo: 'Se asigna un técnico', desc: 'El sistema asigna automáticamente al más adecuado.' },
+  { icon: <CheckCircleOutlined />,   color: '#52c41a', titulo: 'Resolución y cierre',  desc: 'Recibes notificación cuando tu ticket es resuelto.' },
 ]
 
+const SLA_ITEMS = [
+  { label: 'Crítica', t: '4h',  color: '#cf1322', bg: '#fff1f0', border: '#ffa39e' },
+  { label: 'Alta',    t: '8h',  color: '#d46b08', bg: '#fff7e6', border: '#ffd591' },
+  { label: 'Media',   t: '24h', color: '#0958d9', bg: '#e6f4ff', border: '#91caff' },
+  { label: 'Baja',    t: '72h', color: '#389e0d', bg: '#f6ffed', border: '#b7eb8f' },
+]
+
+/* ── componente separador de sección ── */
+function SecTitle({ children }) {
+  return (
+    <div style={{ fontSize: 12, fontWeight: 600, color: '#8c8c8c', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
+      {children}
+    </div>
+  )
+}
+
 export default function PortalInicio() {
-  const navigate  = useNavigate()
+  const navigate    = useNavigate()
   const { usuario } = useAuthStore()
   const [busquedaKB, setBusquedaKB] = useState('')
 
-  const irANuevoTicket = (categoria) => {
+  const hora    = new Date().getHours()
+  const saludo  = hora < 12 ? 'Buenos días' : hora < 19 ? 'Buenas tardes' : 'Buenas noches'
+
+  /* ── sin cambios en la lógica ── */
+  const irANuevoTicket = (categoria) =>
     navigate('/portal/nuevo-ticket', { state: { categoria } })
-  }
 
   const buscarEnKB = () => {
     const q = busquedaKB.trim()
@@ -47,72 +65,83 @@ export default function PortalInicio() {
 
   return (
     <div>
-      {/* BIENVENIDA */}
+
+      {/* ════════ BANNER ════════ */}
       <div style={{
-        background: 'linear-gradient(135deg, #1677ff 0%, #0958d9 100%)',
-        borderRadius: 16, padding: '40px 48px', marginBottom: 28, color: '#fff',
+        background: '#1677ff',
+        borderRadius: 12,
+        padding: '18px 22px',
+        marginBottom: 16,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        border: '1px solid rgba(255,255,255,0.1)',
       }}>
-        <Title level={2} style={{ color: '#fff', margin: 0 }}>
-          Hola, {usuario?.nombre} 👋
-        </Title>
-        <Paragraph style={{ color: 'rgba(255,255,255,0.85)', fontSize: 16, margin: '12px 0 24px' }}>
-          ¿En qué te podemos ayudar hoy? Crea un ticket y un técnico lo atenderá a la brevedad.
-        </Paragraph>
+        <div>
+          <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: 11, marginBottom: 3 }}>
+            {new Date().toLocaleDateString('es-PE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+          </div>
+          <div style={{ color: '#fff', fontSize: 17, fontWeight: 500, marginBottom: 6 }}>
+            {saludo}, {usuario?.nombre} 👋
+          </div>
+          <div style={{ color: 'rgba(255,255,255,0.72)', fontSize: 12, maxWidth: 420 }}>
+            ¿En qué te podemos ayudar hoy? Crea un ticket y un técnico lo atenderá a la brevedad.
+          </div>
+        </div>
         <Space>
           <Button
-            size="large"
             icon={<PlusCircleOutlined />}
-            style={{ background: '#fff', color: '#1677ff', border: 'none', fontWeight: 600 }}
             onClick={() => navigate('/portal/nuevo-ticket')}
+            style={{ background: '#fff', color: '#1677ff', border: 'none', fontWeight: 600, fontSize: 12 }}
           >
             Crear nuevo ticket
           </Button>
           <Button
-            size="large"
             icon={<FileTextOutlined />}
-            style={{ background: 'rgba(255,255,255,0.15)', color: '#fff', border: '1px solid rgba(255,255,255,0.4)' }}
             onClick={() => navigate('/portal/mis-tickets')}
+            style={{ background: 'rgba(255,255,255,0.15)', color: '#fff', border: '1px solid rgba(255,255,255,0.35)', fontSize: 12 }}
           >
             Ver mis tickets
           </Button>
         </Space>
       </div>
 
-      {/* BASE DE CONOCIMIENTO — búsqueda rápida */}
+      {/* ════════ KB BÚSQUEDA ════════ */}
       <Card
-        style={{ marginBottom: 28, background: '#f6f9ff', border: '1px solid #d6e4ff' }}
-        styles={{ body: { padding: '20px 24px' } }}
+        size="small"
+        style={{ marginBottom: 16, background: '#f0f5ff', border: '1px solid #91caff', borderRadius: 12 }}
+        styles={{ body: { padding: '14px 18px' } }}
       >
         <Row align="middle" gutter={16}>
           <Col flex="auto">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-              <BookOutlined style={{ color: '#1677ff', fontSize: 18 }} />
-              <Text strong style={{ fontSize: 15 }}>Busca en la base de conocimiento</Text>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5 }}>
+              <BookOutlined style={{ color: '#1677ff', fontSize: 16 }} />
+              <Text style={{ fontSize: 13, fontWeight: 500 }}>Busca en la base de conocimiento</Text>
             </div>
-            <Text type="secondary" style={{ fontSize: 13 }}>
+            <Text type="secondary" style={{ fontSize: 12 }}>
               Antes de crear un ticket, busca si ya existe una solución documentada.
             </Text>
-            <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+            <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
               <Input
-                placeholder="Ej: no puedo imprimir, VPN no conecta, olvide mi clave..."
-                prefix={<SearchOutlined style={{ color: '#bbb' }} />}
+                placeholder="Ej: no puedo imprimir, VPN no conecta, olvidé mi clave..."
+                prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
                 value={busquedaKB}
                 onChange={e => setBusquedaKB(e.target.value)}
                 onPressEnter={buscarEnKB}
                 allowClear
-                style={{ flex: 1 }}
+                style={{ flex: 1, fontSize: 12 }}
               />
-              <Button type="primary" onClick={buscarEnKB} icon={<SearchOutlined />}>
+              <Button type="primary" onClick={buscarEnKB} icon={<SearchOutlined />} style={{ fontSize: 12 }}>
                 Buscar
               </Button>
             </div>
           </Col>
-          <Col flex="none" style={{ textAlign: 'right' }}>
+          <Col flex="none">
             <Button
               type="link"
-              icon={<BookOutlined />}
+              icon={<ArrowRightOutlined />}
               onClick={() => navigate('/portal/kb')}
-              style={{ padding: 0 }}
+              style={{ fontSize: 12, padding: 0 }}
             >
               Ver todos los artículos
             </Button>
@@ -120,67 +149,112 @@ export default function PortalInicio() {
         </Row>
       </Card>
 
-      {/* CATEGORÍAS RÁPIDAS */}
-      <Title level={5} style={{ marginBottom: 16 }}>¿Qué tipo de problema tienes?</Title>
-      <Row gutter={[12, 12]} style={{ marginBottom: 32 }}>
+      {/* ════════ CATEGORÍAS RÁPIDAS ════════ */}
+      <SecTitle>¿Qué tipo de problema tienes?</SecTitle>
+      <Row gutter={[8, 8]} style={{ marginBottom: 16 }}>
         {CATEGORIAS_RAPIDAS.map(cat => (
           <Col key={cat.categoria} xs={12} sm={6} md={3}>
             <Card
-              hoverable size="small"
-              style={{ textAlign: 'center', cursor: 'pointer', border: '1px solid #f0f0f0' }}
-              styles={{ body: { padding: '16px 8px' } }}
+              size="small"
+              style={{
+                textAlign: 'center',
+                cursor: 'pointer',
+                border: '1px solid #f0f0f0',
+                borderRadius: 10,
+                transition: 'border-color .15s, background .15s',
+              }}
+              styles={{ body: { padding: '14px 6px' } }}
               onClick={() => irANuevoTicket(cat.categoria)}
+              hoverable
             >
-              <div style={{ fontSize: 28, color: cat.color, marginBottom: 8 }}>
+              <div style={{
+                width: 36, height: 36, borderRadius: 9,
+                background: cat.bg, color: cat.color,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 18, margin: '0 auto 8px',
+              }}>
                 {cat.icon}
               </div>
-              <Text style={{ fontSize: 12, display: 'block' }}>{cat.label}</Text>
+              <Text style={{ fontSize: 11, display: 'block', color: '#434343' }}>{cat.label}</Text>
             </Card>
           </Col>
         ))}
       </Row>
 
-      {/* CÓMO FUNCIONA */}
-      <Title level={5} style={{ marginBottom: 16 }}>¿Cómo funciona?</Title>
-      <Row gutter={16} style={{ marginBottom: 32 }}>
-        {PASOS.map((paso, i) => (
-          <Col key={i} xs={24} md={8}>
-            <Card size="small" style={{ height: '100%' }}>
-              <Space direction="vertical" align="center" style={{ width: '100%', textAlign: 'center' }}>
-                {paso.icon}
-                <Text strong>{paso.titulo}</Text>
-                <Text type="secondary" style={{ fontSize: 12 }}>{paso.desc}</Text>
-              </Space>
-            </Card>
-          </Col>
-        ))}
+      {/* ════════ CÓMO FUNCIONA + SLA ════════ */}
+      <Row gutter={12} style={{ marginBottom: 16 }}>
+
+        {/* Pasos */}
+        <Col xs={24} md={14}>
+          <Card
+            size="small"
+            title={<span style={{ fontSize: 12, fontWeight: 600, color: '#8c8c8c', textTransform: 'uppercase', letterSpacing: '0.06em' }}>¿Cómo funciona?</span>}
+            style={{ borderRadius: 12, border: '1px solid #f0f0f0', height: '100%' }}
+            styles={{ header: { minHeight: 40, borderBottom: '1px solid #f0f0f0' }, body: { padding: '12px 16px' } }}
+          >
+            <Row gutter={12}>
+              {PASOS.map((paso, i) => (
+                <Col key={i} span={8}>
+                  <div style={{ textAlign: 'center', padding: '8px 4px' }}>
+                    <div style={{
+                      width: 38, height: 38, borderRadius: 10,
+                      background: `${paso.color}15`,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 18, color: paso.color,
+                      margin: '0 auto 8px',
+                    }}>
+                      {paso.icon}
+                    </div>
+                    <Text style={{ fontSize: 11, fontWeight: 500, display: 'block', marginBottom: 3 }}>
+                      {i + 1}. {paso.titulo}
+                    </Text>
+                    <Text type="secondary" style={{ fontSize: 11, lineHeight: 1.5 }}>
+                      {paso.desc}
+                    </Text>
+                  </div>
+                </Col>
+              ))}
+            </Row>
+          </Card>
+        </Col>
+
+        {/* SLA */}
+        <Col xs={24} md={10}>
+          <Card
+            size="small"
+            title={<span style={{ fontSize: 12, fontWeight: 600, color: '#8c8c8c', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Tiempos de atención</span>}
+            style={{ borderRadius: 12, border: '1px solid #f0f0f0', height: '100%' }}
+            styles={{ header: { minHeight: 40, borderBottom: '1px solid #f0f0f0' }, body: { padding: '12px 16px' } }}
+          >
+            <Row gutter={8}>
+              {SLA_ITEMS.map(({ label, t, color, bg, border }) => (
+                <Col span={12} key={label} style={{ marginBottom: 8 }}>
+                  <div style={{
+                    background: bg,
+                    border: `1px solid ${border}`,
+                    borderRadius: 8,
+                    padding: '10px 12px',
+                    textAlign: 'center',
+                  }}>
+                    <Tag
+                      color={color === '#cf1322' ? 'red' : color === '#d46b08' ? 'orange' : color === '#0958d9' ? 'blue' : 'green'}
+                      style={{ fontSize: 10, marginBottom: 4, display: 'block' }}
+                    >
+                      {label}
+                    </Tag>
+                    <div style={{ fontWeight: 600, fontSize: 16, color }}>{t}</div>
+                    <Text type="secondary" style={{ fontSize: 10 }}>
+                      {label === 'Crítica' ? 'Sistemas caídos' : label === 'Alta' ? 'Afecta el trabajo' : label === 'Media' ? 'Con alternativa' : 'Consultas'}
+                    </Text>
+                  </div>
+                </Col>
+              ))}
+            </Row>
+          </Card>
+        </Col>
+
       </Row>
 
-      {/* TIEMPOS DE ATENCIÓN */}
-      <Card title="Tiempos de atención según prioridad" size="small">
-        <Row gutter={12}>
-          {[
-            { label: 'Crítica',  sla: '4 horas',  color: '#ff4d4f', desc: 'Alta Dirección, sistemas caídos' },
-            { label: 'Alta',     sla: '8 horas',  color: '#fa8c16', desc: 'Afecta trabajo del usuario'      },
-            { label: 'Media',    sla: '24 horas', color: '#1677ff', desc: 'Problema con solución alternativa'},
-            { label: 'Baja',     sla: '72 horas', color: '#52c41a', desc: 'Consultas y mejoras'             },
-          ].map(p => (
-            <Col key={p.label} xs={12} md={6}>
-              <div style={{
-                border: `1px solid ${p.color}`, borderRadius: 8,
-                padding: '12px 16px', textAlign: 'center',
-              }}>
-                <Tag color={p.color === '#ff4d4f' ? 'red' : p.color === '#fa8c16' ? 'orange' : p.color === '#1677ff' ? 'blue' : 'green'}
-                  style={{ marginBottom: 6 }}>
-                  {p.label}
-                </Tag>
-                <div style={{ fontWeight: 700, fontSize: 18, color: p.color }}>{p.sla}</div>
-                <Text type="secondary" style={{ fontSize: 11 }}>{p.desc}</Text>
-              </div>
-            </Col>
-          ))}
-        </Row>
-      </Card>
     </div>
   )
 }

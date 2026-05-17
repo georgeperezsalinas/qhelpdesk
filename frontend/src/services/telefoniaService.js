@@ -1,10 +1,11 @@
 import api from './api'
 
 export const telefoniaService = {
-  dashboard: ()           => api.get('/telefonia/dashboard'),
-  listar:    (params)     => api.get('/telefonia/', { params }),
-  crear:     (data)       => api.post('/telefonia/', data),
-  actualizar:(id, data)   => api.patch(`/telefonia/${id}`, data),
+  dashboard:     ()         => api.get('/telefonia/dashboard'),
+  listar:        (params)   => api.get('/telefonia/', { params }),
+  crear:         (data)     => api.post('/telefonia/', data),
+  actualizar:    (id, data) => api.patch(`/telefonia/${id}`, data),
+  analisisCostos: ()        => api.get('/telefonia/analisis-costos'),
 }
 
 export const TIPOS_LINEA = [

@@ -2,18 +2,19 @@ import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import {
   Form, Input, Select, Button, Card, Typography, Steps,
-  Result, Space, Alert, Row, Col, Upload, Tag,
+  Result, Space, Alert, Row, Col,
 } from 'antd'
 import {
-  SendOutlined, ArrowLeftOutlined, PaperClipOutlined,
+  SendOutlined, ArrowLeftOutlined,
   CheckCircleOutlined, InfoCircleOutlined,
 } from '@ant-design/icons'
 import { ticketService, CATEGORIAS, PRIORIDADES } from '../../services/ticketService'
 
-const { Title, Text, Paragraph } = Typography
+const { Text, Paragraph } = Typography
 const { TextArea } = Input
 const { Option } = Select
 
+/* sin cambios en datos */
 const TIPS_CATEGORIA = {
   hardware:      'Incluye el código de inventario del equipo si lo tienes (ej: EQ-LIM-0001).',
   software:      'Indica el nombre del programa, versión y el mensaje de error exacto.',
@@ -38,6 +39,7 @@ export default function NuevoTicket() {
   const [loading, setLoading] = useState(false)
   const [categoriaSelec, setCategoriaSelec] = useState(location.state?.categoria || null)
 
+  /* sin cambios en lógica */
   const onValuesChange = ({ categoria }) => {
     if (categoria) setCategoriaSelec(categoria)
   }
@@ -45,21 +47,15 @@ export default function NuevoTicket() {
   const enviar = async (values) => {
     setLoading(true)
     try {
-      const { data } = await ticketService.crear({
-        ...values,
-        canal_entrada: 'portal',
-      })
+      const { data } = await ticketService.crear({ ...values, canal_entrada: 'portal' })
       setEnviado(data)
       setPaso(2)
     } catch (err) {
-      form.setFields([{
-        name: 'titulo',
-        errors: [err.response?.data?.detail || 'Error al enviar el ticket'],
-      }])
+      form.setFields([{ name: 'titulo', errors: [err.response?.data?.detail || 'Error al enviar el ticket'] }])
     } finally { setLoading(false) }
   }
 
-  // ── Paso 0: Formulario ────────────────────────────────────────────────────
+  /* ── Formulario ── */
   const FormularioTicket = () => (
     <Form
       form={form}
@@ -67,28 +63,25 @@ export default function NuevoTicket() {
       onFinish={enviar}
       onValuesChange={onValuesChange}
       initialValues={{ categoria: location.state?.categoria, prioridad: 'media' }}
-      size="large"
     >
       <Row gutter={16}>
         <Col xs={24} md={16}>
-          {/* Título */}
           <Form.Item
             name="titulo"
-            label="¿Cuál es el problema? (resumen)"
+            label={<span style={{ fontSize: 12, color: '#595959' }}>¿Cuál es el problema? (resumen)</span>}
             rules={[{ required: true, message: 'Describe brevemente el problema' }]}
           >
             <Input
               placeholder="Ej: No puedo conectarme a internet desde mi PC"
-              maxLength={200}
-              showCount
+              maxLength={200} showCount
+              style={{ fontSize: 12 }}
             />
           </Form.Item>
 
-          {/* Descripción */}
           <Form.Item
             name="descripcion"
-            label="Descripción detallada"
-            extra="Cuanto más detalle des, más rápido podremos ayudarte."
+            label={<span style={{ fontSize: 12, color: '#595959' }}>Descripción detallada</span>}
+            extra={<span style={{ fontSize: 11 }}>Cuanto más detalle des, más rápido podremos ayudarte.</span>}
           >
             <TextArea
               placeholder={
@@ -96,44 +89,37 @@ export default function NuevoTicket() {
                   ? TIPS_CATEGORIA[categoriaSelec]
                   : 'Describe el problema paso a paso: ¿qué estabas haciendo? ¿qué error aparece? ¿desde cuándo ocurre?'
               }
-              rows={5}
-              maxLength={2000}
-              showCount
+              rows={5} maxLength={2000} showCount
+              style={{ fontSize: 12 }}
             />
           </Form.Item>
 
           {categoriaSelec && TIPS_CATEGORIA[categoriaSelec] && (
             <Alert
-              type="info"
-              icon={<InfoCircleOutlined />}
-              showIcon
-              message={TIPS_CATEGORIA[categoriaSelec]}
-              style={{ marginBottom: 16 }}
+              type="info" icon={<InfoCircleOutlined />} showIcon
+              message={<span style={{ fontSize: 12 }}>{TIPS_CATEGORIA[categoriaSelec]}</span>}
+              style={{ marginBottom: 16, borderRadius: 8 }}
             />
           )}
         </Col>
 
         <Col xs={24} md={8}>
-          {/* Categoría */}
           <Form.Item
             name="categoria"
-            label="Categoría"
+            label={<span style={{ fontSize: 12, color: '#595959' }}>Categoría</span>}
             rules={[{ required: true, message: 'Selecciona una categoría' }]}
           >
-            <Select placeholder="¿Qué área es el problema?">
-              {CATEGORIAS.map(c => (
-                <Option key={c.value} value={c.value}>{c.label}</Option>
-              ))}
+            <Select placeholder="¿Qué área es el problema?" style={{ fontSize: 12 }}>
+              {CATEGORIAS.map(c => <Option key={c.value} value={c.value}>{c.label}</Option>)}
             </Select>
           </Form.Item>
 
-          {/* Prioridad */}
           <Form.Item
             name="prioridad"
-            label="Urgencia"
-            extra="La prioridad final la asigna el área de sistemas."
+            label={<span style={{ fontSize: 12, color: '#595959' }}>Urgencia</span>}
+            extra={<span style={{ fontSize: 11 }}>La prioridad final la asigna el área de sistemas.</span>}
           >
-            <Select>
+            <Select style={{ fontSize: 12 }}>
               {PRIORIDADES.map(p => (
                 <Option key={p.value} value={p.value}>
                   <span style={{ color: p.color }}>■</span> {p.label}
@@ -142,47 +128,42 @@ export default function NuevoTicket() {
             </Select>
           </Form.Item>
 
-          {/* Info SLA */}
+          {/* SLA info — mismo diseño que original pero con tokens ERP Pro */}
           <Card
             size="small"
-            style={{ background: '#f6f9ff', border: '1px solid #d6e4ff', marginTop: 8 }}
+            style={{ background: '#f0f5ff', border: '1px solid #91caff', borderRadius: 10, marginTop: 4 }}
+            styles={{ body: { padding: '10px 12px' } }}
           >
-            <Text strong style={{ fontSize: 12 }}>Tiempos de respuesta</Text>
-            <div style={{ marginTop: 8 }}>
-              {[
-                { p: 'Crítica', t: '4h',  c: '#ff4d4f' },
-                { p: 'Alta',    t: '8h',  c: '#fa8c16' },
-                { p: 'Media',   t: '24h', c: '#1677ff' },
-                { p: 'Baja',    t: '72h', c: '#52c41a' },
-              ].map(x => (
-                <div key={x.p} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
-                  <Text style={{ fontSize: 11, color: x.c }}>{x.p}</Text>
-                  <Text style={{ fontSize: 11 }} type="secondary">{x.t}</Text>
-                </div>
-              ))}
-            </div>
+            <Text style={{ fontSize: 11, fontWeight: 500, display: 'block', marginBottom: 8 }}>
+              Tiempos de respuesta
+            </Text>
+            {[
+              { p: 'Crítica', t: '4h',  c: '#cf1322' },
+              { p: 'Alta',    t: '8h',  c: '#d46b08' },
+              { p: 'Media',   t: '24h', c: '#1677ff' },
+              { p: 'Baja',    t: '72h', c: '#389e0d' },
+            ].map(x => (
+              <div key={x.p} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+                <Text style={{ fontSize: 11, color: x.c }}>{x.p}</Text>
+                <Text type="secondary" style={{ fontSize: 11 }}>{x.t}</Text>
+              </div>
+            ))}
           </Card>
         </Col>
       </Row>
 
-      <Space>
-        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/portal')}>
+      <Space style={{ marginTop: 8 }}>
+        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/portal')} style={{ fontSize: 12 }}>
           Cancelar
         </Button>
-        <Button
-          type="primary"
-          htmlType="submit"
-          icon={<SendOutlined />}
-          loading={loading}
-          size="large"
-        >
+        <Button type="primary" htmlType="submit" icon={<SendOutlined />} loading={loading} style={{ fontSize: 12 }}>
           Enviar ticket
         </Button>
       </Space>
     </Form>
   )
 
-  // ── Paso 2: Confirmación ──────────────────────────────────────────────────
+  /* ── Confirmación ── */
   const Confirmacion = () => (
     <Result
       status="success"
@@ -196,40 +177,26 @@ export default function NuevoTicket() {
               {enviado?.numero}
             </Text>
           </Paragraph>
-          <Paragraph type="secondary">
+          <Paragraph type="secondary" style={{ fontSize: 12 }}>
             Un técnico será asignado automáticamente. Recibirás actualizaciones
-            por correo electrónico. También puedes consultar el estado en{' '}
-            <strong>Mis tickets</strong>.
+            por correo electrónico. También puedes consultar el estado en <strong>Mis tickets</strong>.
           </Paragraph>
           {enviado?.sla_limite && (
             <Alert
-              type="info"
-              showIcon
+              type="info" showIcon
               message={`Tiempo estimado de resolución: antes del ${new Date(enviado.sla_limite).toLocaleString('es-PE', { dateStyle: 'short', timeStyle: 'short' })}`}
-              style={{ maxWidth: 400, margin: '16px auto 0' }}
+              style={{ maxWidth: 400, margin: '14px auto 0', borderRadius: 8 }}
             />
           )}
         </div>
       }
       extra={[
-        <Button
-          key="otro"
-          type="primary"
-          icon={<SendOutlined />}
-          onClick={() => {
-            form.resetFields()
-            setPaso(0)
-            setEnviado(null)
-            setCategoriaSelec(null)
-          }}
-        >
+        <Button key="otro" type="primary" icon={<SendOutlined />} style={{ fontSize: 12 }}
+          onClick={() => { form.resetFields(); setPaso(0); setEnviado(null); setCategoriaSelec(null) }}>
           Crear otro ticket
         </Button>,
-        <Button
-          key="mis"
-          icon={<CheckCircleOutlined />}
-          onClick={() => navigate('/portal/mis-tickets')}
-        >
+        <Button key="mis" icon={<CheckCircleOutlined />} style={{ fontSize: 12 }}
+          onClick={() => navigate('/portal/mis-tickets')}>
           Ver mis tickets
         </Button>,
       ]}
@@ -238,26 +205,23 @@ export default function NuevoTicket() {
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
-        <Button
-          type="text"
-          icon={<ArrowLeftOutlined />}
-          onClick={() => navigate('/portal')}
-        />
-        <Title level={4} style={{ margin: 0 }}>Nuevo ticket de soporte</Title>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
+        <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/portal')} size="small" />
+        <span style={{ fontSize: 13, fontWeight: 500, color: '#262626' }}>Nuevo ticket de soporte</span>
       </div>
 
       <Steps
         current={paso}
-        style={{ marginBottom: 32 }}
+        size="small"
+        style={{ marginBottom: 20 }}
         items={[
-          { title: 'Describir problema' },
-          { title: 'Enviando...' },
-          { title: 'Confirmación' },
+          { title: <span style={{ fontSize: 12 }}>Describir problema</span> },
+          { title: <span style={{ fontSize: 12 }}>Enviando...</span> },
+          { title: <span style={{ fontSize: 12 }}>Confirmación</span> },
         ]}
       />
 
-      <Card>
+      <Card style={{ borderRadius: 12, border: '1px solid #f0f0f0' }} styles={{ body: { padding: '18px 20px' } }}>
         {paso < 2 ? <FormularioTicket /> : <Confirmacion />}
       </Card>
     </div>

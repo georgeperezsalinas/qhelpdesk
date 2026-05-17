@@ -174,3 +174,45 @@ def actualizar_articulo(
     db.commit()
     db.refresh(a)
     return a
+
+
+@router.delete("/{articulo_id}", status_code=204)
+def eliminar_articulo(
+    articulo_id: int,
+    db: Session = Depends(get_db),
+    _: Usuario = Depends(require_roles(*_ROLES_GESTION)),
+):
+    a = db.query(ArticuloKB).filter(ArticuloKB.id == articulo_id).first()
+    if not a:
+        raise HTTPException(404, "Artículo no encontrado")
+    db.delete(a)
+    db.commit()
+
+
+@router.get("/admin/todos", response_model=List[ArticuloDetalle])
+def listar_todos_admin(
+    busqueda:  Optional[str] = Query(None, max_length=100),
+    categoria: Optional[str] = None,
+    estado:    Optional[str] = None,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, le=100),
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(require_roles(*_ROLES_GESTION)),
+):
+    """Lista todos los artículos (todos los estados) para el panel admin."""
+    q = db.query(ArticuloKB)
+
+    if estado:
+        q = q.filter(ArticuloKB.estado == estado)
+    if categoria:
+        q = q.filter(ArticuloKB.categoria == categoria)
+    if busqueda:
+        like = f"%{busqueda}%"
+        q = q.filter(or_(
+            ArticuloKB.titulo.ilike(like),
+            ArticuloKB.contenido.ilike(like),
+            ArticuloKB.tags.ilike(like),
+        ))
+
+    articulos = q.order_by(ArticuloKB.actualizado_en.desc()).offset(skip).limit(limit).all()
+    return [ArticuloDetalle.from_orm_ext(a) for a in articulos]

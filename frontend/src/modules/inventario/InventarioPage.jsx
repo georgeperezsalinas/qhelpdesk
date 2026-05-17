@@ -1,17 +1,22 @@
+// ─────────────────────────────────────────────────────────────────────
+// src/modules/inventario/InventarioPage.jsx
+// Rediseño v2 — Inventario TI (Equipos + Licencias)
+// Drop-in: mantiene inventarioService, AG Grid, forwardRef tabs,
+// upload de foto, historial de movimientos, asignaciones.
+// Requiere: qmodules.css y qhelpers.jsx cargados.
+// ─────────────────────────────────────────────────────────────────────
+
 import { useState, useEffect, useRef, useCallback, useMemo, forwardRef, useImperativeHandle } from 'react'
 import { AgGridReact } from 'ag-grid-react'
 import {
-  Button, Space, Tag, Badge, Tabs, Drawer, Form, Input, Select, DatePicker, InputNumber,
-  Tooltip, Popconfirm, Modal, Timeline, Typography, message, Alert, Progress, Divider,
-  Upload, Row, Col,
+  Button, Space, Tabs, Drawer, Form, Input, Select, DatePicker, InputNumber,
+  Tooltip, Popconfirm, Modal, Timeline, Avatar, message, Alert, Upload, Row, Col,
 } from 'antd'
 import {
   PlusOutlined, ReloadOutlined, EditOutlined, ExportOutlined,
   SwapOutlined, DeleteOutlined, HistoryOutlined, WarningOutlined,
-  LaptopOutlined, FileTextOutlined, SafetyOutlined, SearchOutlined,
-  CameraOutlined,
+  LaptopOutlined, FileTextOutlined, SearchOutlined, CameraOutlined,
 } from '@ant-design/icons'
-import KpiStrip from '../../components/common/KpiStrip'
 import dayjs from 'dayjs'
 import {
   inventarioService, TIPOS_EQUIPO, ESTADOS_EQUIPO, TIPOS_LICENCIA,
@@ -21,139 +26,82 @@ import { configuracionService } from '../../services/configuracionService'
 import { usuarioService } from '../../services/usuarioService'
 import { defaultGridOptions, AG_THEME_CLASS } from '../../utils/agGridConfig'
 import { useAuthStore } from '../../store/authStore'
+import {
+  QPageHeader, QKpiRow, QPill, QProgress, QDrawerTitle,
+} from '../../components/common/qhelpers'
 
-const { Title, Text } = Typography
 const { Option } = Select
 
-// ── CELL RENDERERS ────────────────────────────────────────────────────────────
-const TipoRenderer = ({ value }) => {
-  const t = getTipoEquipo(value)
-  return t ? <span>{t.icon} {t.label}</span> : value
+// Mapeo de estados a tono de pill
+const ESTADO_TONE = {
+  activo:       'ok',
+  asignado:     'info',
+  almacen:      'muted',
+  mantenimiento:'warn',
+  reparacion:   'warn',
+  de_baja:      'crit',
+  perdido:      'crit',
+  obsoleto:     'muted',
 }
 
-const EstadoEquipoRenderer = ({ value }) => {
-  const e = getEstadoEquipo(value)
-  return e ? <Badge status={e.color} text={e.label} /> : value
-}
-
-const GarantiaRenderer = ({ data }) => {
-  if (!data?.garantia_hasta) return <Text type="secondary">—</Text>
-  const dias = dayjs(data.garantia_hasta).diff(dayjs(), 'day')
-  if (dias < 0)   return <Tag color="red">Vencida</Tag>
-  if (dias <= 30) return <Tag color="orange">{dias}d restantes</Tag>
-  return <Tag color="green">{dayjs(data.garantia_hasta).format('DD/MM/YYYY')}</Tag>
-}
-
-const DepreciacionRenderer = ({ data }) => {
-  if (!data?.valor_compra || !data?.valor_actual) return <Text type="secondary">—</Text>
-  const pct = Math.min(100, Math.round((1 - data.valor_actual / data.valor_compra) * 100))
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-      <Progress percent={pct} size="small" showInfo={false}
-        strokeColor={pct > 80 ? '#ff4d4f' : pct > 50 ? '#fa8c16' : '#52c41a'}
-        style={{ width: 60, margin: 0 }} />
-      <Text style={{ fontSize: 11 }}>{pct}%</Text>
-    </div>
-  )
-}
-
-const LicenciaVencimientoRenderer = ({ data }) => {
-  const { estado_vencimiento, dias_para_vencer, fecha_vencimiento } = data || {}
-  if (!fecha_vencimiento) return <Tag>Sin vencimiento</Tag>
-  const colores = { vencida: 'red', critico: 'red', urgente: 'orange', alerta: 'gold', vigente: 'green' }
-  const labels  = { vencida: 'Vencida', critico: `${dias_para_vencer}d`, urgente: `${dias_para_vencer}d`,
-                    alerta: `${dias_para_vencer}d`, vigente: dayjs(fecha_vencimiento).format('DD/MM/YY') }
-  return <Tag color={colores[estado_vencimiento]}>{labels[estado_vencimiento]}</Tag>
-}
-
-const StockRenderer = ({ data }) => {
-  if (!data) return null
-  const { cantidad_usada, cantidad_total } = data
-  const pct = Math.round((cantidad_usada / cantidad_total) * 100)
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-      <Progress percent={pct} size="small" showInfo={false}
-        strokeColor={pct >= 100 ? '#ff4d4f' : pct >= 80 ? '#fa8c16' : '#52c41a'}
-        style={{ width: 60, margin: 0 }} />
-      <Text style={{ fontSize: 11 }}>{cantidad_usada}/{cantidad_total}</Text>
-    </div>
-  )
-}
-
-// ── FOTO UPLOAD INLINE ────────────────────────────────────────────────────────
+// ── Foto upload (estilo nuevo) ─────────────────────────────────────────
 function FotoEquipoUpload({ value, onChange }) {
   const [uploading, setUploading] = useState(false)
-
   const handleUpload = async ({ file, onSuccess, onError }) => {
     setUploading(true)
     try {
       const { data } = await configuracionService.subirArchivo(file)
-      onChange(data.url)
-      onSuccess(data)
-      message.success('Foto subida')
-    } catch (err) {
-      onError(err)
-      message.error('Error al subir la foto')
-    } finally {
-      setUploading(false)
-    }
+      onChange(data.url); onSuccess(data); message.success('Foto subida')
+    } catch (err) { onError(err); message.error('Error al subir la foto') }
+    finally { setUploading(false) }
   }
-
   return (
-    <Upload
-      accept="image/*"
-      showUploadList={false}
-      customRequest={handleUpload}
+    <Upload accept="image/*" showUploadList={false} customRequest={handleUpload}
       beforeUpload={(file) => {
         if (!file.type.startsWith('image/')) { message.error('Solo imágenes'); return false }
         if (file.size > 5 * 1024 * 1024)    { message.error('Máx. 5 MB'); return false }
         return true
-      }}
-    >
+      }}>
       <div style={{
-        width: 80, height: 80, borderRadius: 8, cursor: 'pointer',
-        background: value ? 'transparent' : '#f8fafc',
-        border: '2px dashed #cbd5e1', overflow: 'hidden',
+        width: 96, height: 96, borderRadius: 12, cursor: 'pointer',
+        background: value ? 'var(--bg-surface)' : 'var(--bg-tinted)',
+        border: '1.5px dashed var(--acc-line)',
+        overflow: 'hidden', position: 'relative',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        position: 'relative',
       }}>
         {value
-          ? <img src={value} alt="foto equipo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-          : <Space direction="vertical" align="center" size={0}>
-              <CameraOutlined style={{ fontSize: 20, color: '#94a3b8' }} />
-              <Text style={{ fontSize: 10, color: '#94a3b8' }}>
-                {uploading ? 'Subiendo...' : 'Foto (opcional)'}
-              </Text>
-            </Space>
+          ? <img src={value} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          : (
+            <div style={{ textAlign: 'center', color: 'var(--acc-ink)' }}>
+              <CameraOutlined style={{ fontSize: 22 }} />
+              <div style={{ fontSize: 10, marginTop: 4, fontWeight: 500 }}>
+                {uploading ? 'Subiendo…' : 'Foto del equipo'}
+              </div>
+            </div>
+          )
         }
-        {value && (
-          <div style={{
-            position: 'absolute', bottom: 0, width: '100%',
-            background: 'rgba(0,0,0,0.4)', textAlign: 'center', padding: '2px 0',
-          }}>
-            <CameraOutlined style={{ color: '#fff', fontSize: 11 }} />
-          </div>
-        )}
       </div>
     </Upload>
   )
 }
 
-// ── TAB EQUIPOS (forwardRef) ──────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────
+// TAB EQUIPOS
+// ─────────────────────────────────────────────────────────────────────
 const TabEquipos = forwardRef(function TabEquipos({ usuarios, sedes }, ref) {
   const gridRef = useRef()
   const { usuario } = useAuthStore()
   const esJefe = ['jefe','especialista'].includes(usuario?.rol)
 
-  const [equipos,         setEquipos]       = useState([])
-  const [loading,         setLoading]       = useState(false)
-  const [drawerForm,      setDrawerForm]    = useState(false)
-  const [drawerAsignar,   setDrawerAsignar] = useState(false)
+  const [equipos, setEquipos] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [drawerForm, setDrawerForm] = useState(false)
+  const [drawerAsignar, setDrawerAsignar] = useState(false)
   const [drawerHistorial, setDrawerHistorial] = useState(false)
-  const [seleccionado,    setSeleccionado]  = useState(null)
-  const [historial,       setHistorial]     = useState([])
-  const [fotoUrl,         setFotoUrl]       = useState(null)
-  const [form]     = Form.useForm()
+  const [seleccionado, setSeleccionado] = useState(null)
+  const [historial, setHistorial] = useState([])
+  const [fotoUrl, setFotoUrl] = useState(null)
+  const [form] = Form.useForm()
   const [formAsig] = Form.useForm()
 
   const cargar = useCallback(async () => {
@@ -164,19 +112,11 @@ const TabEquipos = forwardRef(function TabEquipos({ usuarios, sedes }, ref) {
     } catch { message.error('Error al cargar equipos') }
     finally  { setLoading(false) }
   }, [])
-
   useEffect(() => { cargar() }, [cargar])
 
-  const abrirNuevo = () => {
-    setSeleccionado(null)
-    setFotoUrl(null)
-    form.resetFields()
-    setDrawerForm(true)
-  }
-
+  const abrirNuevo = () => { setSeleccionado(null); setFotoUrl(null); form.resetFields(); setDrawerForm(true) }
   const abrirEditar = (eq) => {
-    setSeleccionado(eq)
-    setFotoUrl(eq.foto_url || null)
+    setSeleccionado(eq); setFotoUrl(eq.foto_url || null)
     form.setFieldsValue({
       ...eq,
       fecha_compra:   eq.fecha_compra   ? dayjs(eq.fecha_compra)   : null,
@@ -184,38 +124,29 @@ const TabEquipos = forwardRef(function TabEquipos({ usuarios, sedes }, ref) {
     })
     setDrawerForm(true)
   }
-
   const exportar = () => gridRef.current?.api.exportDataAsCsv({
     fileName: `inventario_equipos_${dayjs().format('YYYYMMDD')}.csv`,
   })
-
-  // Exponer acciones al padre
   useImperativeHandle(ref, () => ({ reload: cargar, exportar, openNew: abrirNuevo }), [cargar])
 
   const abrirAsignar = (eq) => {
-    setSeleccionado(eq)
-    formAsig.resetFields()
+    setSeleccionado(eq); formAsig.resetFields()
     formAsig.setFieldsValue({
-      usuario_id: eq.usuario_asignado_id,
-      sede_id:    eq.sede_id,
+      usuario_id: eq.usuario_asignado_id, sede_id: eq.sede_id,
       ubicacion_fisica: eq.ubicacion_fisica,
     })
     setDrawerAsignar(true)
   }
-
   const abrirHistorial = async (eq) => {
     setSeleccionado(eq)
     const { data } = await inventarioService.historialEquipo(eq.id)
-    setHistorial(data)
-    setDrawerHistorial(true)
+    setHistorial(data); setDrawerHistorial(true)
   }
-
   const guardar = async (values) => {
     const payload = {
-      ...values,
-      foto_url:       fotoUrl,
-      fecha_compra:   values.fecha_compra   ? values.fecha_compra.format('YYYY-MM-DD')   : null,
-      garantia_hasta: values.garantia_hasta ? values.garantia_hasta.format('YYYY-MM-DD') : null,
+      ...values, foto_url: fotoUrl,
+      fecha_compra:   values.fecha_compra?.format('YYYY-MM-DD')   || null,
+      garantia_hasta: values.garantia_hasta?.format('YYYY-MM-DD') || null,
     }
     try {
       if (seleccionado) {
@@ -225,21 +156,16 @@ const TabEquipos = forwardRef(function TabEquipos({ usuarios, sedes }, ref) {
         await inventarioService.crearEquipo(payload)
         message.success('Equipo registrado')
       }
-      setDrawerForm(false)
-      cargar()
+      setDrawerForm(false); cargar()
     } catch (err) { message.error(err.response?.data?.detail || 'Error al guardar') }
   }
-
   const guardarAsignacion = async (values) => {
     try {
       await inventarioService.asignarEquipo(seleccionado.id, values)
-      message.success('Asignación registrada')
-      setDrawerAsignar(false)
-      cargar()
+      message.success('Asignación registrada'); setDrawerAsignar(false); cargar()
     } catch (err) { message.error(err.response?.data?.detail || 'Error') }
   }
-
-  const darBaja = async (eq) => {
+  const darBaja = (eq) => {
     Modal.confirm({
       title: `¿Dar de baja ${eq.codigo_inventario}?`,
       content: (
@@ -250,74 +176,98 @@ const TabEquipos = forwardRef(function TabEquipos({ usuarios, sedes }, ref) {
       onOk: async () => {
         const motivo = document.getElementById('motivo-baja')?.value || 'Sin especificar'
         await inventarioService.darDeBaja(eq.id, motivo)
-        message.success('Equipo dado de baja')
-        cargar()
+        message.success('Equipo dado de baja'); cargar()
       },
     })
   }
 
   const columnDefs = useMemo(() => [
-    { headerName: '', width: 44, checkboxSelection: true, headerCheckboxSelection: true,
+    { headerName: '', width: 38, checkboxSelection: true, headerCheckboxSelection: true,
       pinned: 'left', suppressMenu: true, sortable: false, filter: false },
     { headerName: '', field: 'foto_url', width: 52, pinned: 'left',
       sortable: false, filter: false, suppressMenu: true,
       cellRenderer: ({ value }) => value
-        ? <img src={value} alt="" style={{ width: 36, height: 36, objectFit: 'cover', borderRadius: 4, marginTop: 6 }} />
-        : null },
-    { headerName: 'Código', field: 'codigo_inventario', width: 140, pinned: 'left',
-      filter: 'agTextColumnFilter' },
-    { headerName: 'Tipo', field: 'tipo', width: 140,
-      filter: 'agSetColumnFilter', cellRenderer: TipoRenderer,
-      filterParams: { values: TIPOS_EQUIPO.map(t => t.value) } },
-    { headerName: 'Marca / Modelo', field: 'marca', minWidth: 180,
+        ? <img src={value} alt=""
+            style={{ width: 32, height: 32, objectFit: 'cover', borderRadius: 4, border: '1px solid var(--line-1)' }} />
+        : <span style={{
+            width: 32, height: 32, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            background: 'var(--bg-sunken)', borderRadius: 4, color: 'var(--ink-4)', fontSize: 14,
+          }}>{getTipoEquipo(null)?.icon || '📦'}</span> },
+    { headerName: 'Código', field: 'codigo_inventario', width: 150, pinned: 'left',
       filter: 'agTextColumnFilter',
+      cellRenderer: ({ value }) => <span className="qmono" style={{ fontWeight: 600, color: 'var(--ink-1)' }}>{value}</span> },
+    { headerName: 'Tipo', field: 'tipo', width: 130, filter: 'agSetColumnFilter',
+      cellRenderer: ({ value }) => {
+        const t = getTipoEquipo(value)
+        return t ? <span style={{ fontSize: 12, color: 'var(--ink-2)' }}>{t.icon} {t.label}</span> : value
+      },
+      filterParams: { values: TIPOS_EQUIPO.map(t => t.value) } },
+    { headerName: 'Marca / Modelo', field: 'marca', minWidth: 200, filter: 'agTextColumnFilter',
       valueGetter: p => `${p.data?.marca || ''} ${p.data?.modelo || ''}`,
       cellRenderer: ({ data }) => (
-        <div>
-          <div style={{ fontWeight: 500 }}>{data?.marca} {data?.modelo}</div>
-          <div style={{ fontSize: 11, color: '#888' }}>{data?.serie || '—'}</div>
+        <div style={{ lineHeight: 1.2 }}>
+          <div style={{ fontWeight: 500, color: 'var(--ink-1)' }}>{data?.marca} {data?.modelo}</div>
+          <div className="qmono qmuted" style={{ fontSize: 10.5 }}>{data?.serie || '—'}</div>
         </div>
       )},
-    { headerName: 'Estado', field: 'estado', width: 150,
-      filter: 'agSetColumnFilter', cellRenderer: EstadoEquipoRenderer,
+    { headerName: 'Estado', field: 'estado', width: 130, filter: 'agSetColumnFilter',
+      cellRenderer: ({ value }) => {
+        const e = getEstadoEquipo(value)
+        return e ? <QPill tone={ESTADO_TONE[value] || 'muted'}>{e.label}</QPill> : value
+      },
+      cellStyle: { overflow: 'visible' },
       filterParams: { values: ESTADOS_EQUIPO.map(e => e.value) } },
-    { headerName: 'Usuario asignado', field: 'usuario_asignado', minWidth: 160,
-      filter: 'agTextColumnFilter',
+    { headerName: 'Usuario asignado', field: 'usuario_asignado', minWidth: 170, filter: 'agTextColumnFilter',
       valueGetter: p => p.data?.usuario_asignado
-        ? `${p.data.usuario_asignado.nombre} ${p.data.usuario_asignado.apellido}` : '—' },
-    { headerName: 'Sede', field: 'sede', width: 140,
-      filter: 'agSetColumnFilter',
+        ? `${p.data.usuario_asignado.nombre} ${p.data.usuario_asignado.apellido}` : '—',
+      cellRenderer: ({ data }) => data?.usuario_asignado
+        ? <span style={{ fontSize: 12 }}>{data.usuario_asignado.nombre} {data.usuario_asignado.apellido}</span>
+        : <span className="qmuted" style={{ fontSize: 11.5 }}>Sin asignar</span> },
+    { headerName: 'Sede', field: 'sede', width: 140, filter: 'agSetColumnFilter',
       valueGetter: p => p.data?.sede?.nombre || '—' },
-    { headerName: 'SO', field: 'sistema_operativo', width: 130,
-      filter: 'agTextColumnFilter' },
-    { headerName: 'RAM', field: 'ram_gb', width: 80,
-      filter: 'agNumberColumnFilter',
+    { headerName: 'SO', field: 'sistema_operativo', width: 130, filter: 'agTextColumnFilter' },
+    { headerName: 'RAM', field: 'ram_gb', width: 80, filter: 'agNumberColumnFilter',
       valueFormatter: p => p.value ? `${p.value} GB` : '—' },
-    { headerName: 'Valor compra', field: 'valor_compra', width: 130,
-      filter: 'agNumberColumnFilter', valueFormatter: p => formatCurrency(p.value) },
-    { headerName: 'Valor actual', field: 'valor_actual', width: 130,
-      filter: 'agNumberColumnFilter', valueFormatter: p => formatCurrency(p.value) },
-    { headerName: 'Depreciación', field: 'depreciacion_anual', width: 130,
-      filter: false, cellRenderer: DepreciacionRenderer },
-    { headerName: 'Garantía', field: 'garantia_hasta', width: 140,
-      filter: 'agDateColumnFilter', cellRenderer: GarantiaRenderer },
-    { headerName: 'IP', field: 'ip_asignada', width: 120,
-      filter: 'agTextColumnFilter' },
-    { headerName: 'Acciones', width: 130, pinned: 'right',
+    { headerName: 'V. Compra', field: 'valor_compra', width: 120, filter: 'agNumberColumnFilter',
+      valueFormatter: p => formatCurrency(p.value),
+      cellRenderer: ({ value }) => <span className="qmono" style={{ fontSize: 11.5 }}>{formatCurrency(value)}</span> },
+    { headerName: 'V. Actual', field: 'valor_actual', width: 120, filter: 'agNumberColumnFilter',
+      cellRenderer: ({ value }) => <span className="qmono" style={{ fontSize: 11.5 }}>{formatCurrency(value)}</span> },
+    { headerName: 'Depreciación', field: 'depreciacion_anual', width: 150, filter: false,
+      cellStyle: { overflow: 'visible' },
+      cellRenderer: ({ data }) => {
+        if (!data?.valor_compra || !data?.valor_actual) return <span className="qmuted">—</span>
+        const pct = Math.min(100, Math.round((1 - data.valor_actual / data.valor_compra) * 100))
+        return <QProgress value={pct} tone={pct > 80 ? 'crit' : pct > 50 ? 'warn' : 'ok'} />
+      }},
+    { headerName: 'Garantía', field: 'garantia_hasta', width: 130, filter: 'agDateColumnFilter',
+      cellStyle: { overflow: 'visible' },
+      cellRenderer: ({ data }) => {
+        if (!data?.garantia_hasta) return <span className="qmuted">—</span>
+        const dias = dayjs(data.garantia_hasta).diff(dayjs(), 'day')
+        if (dias < 0)   return <QPill tone="crit">Vencida</QPill>
+        if (dias <= 30) return <QPill tone="warn">{dias}d</QPill>
+        return <span className="qmono" style={{ fontSize: 11.5 }}>{dayjs(data.garantia_hasta).format('DD/MM/YY')}</span>
+      }},
+    { headerName: 'IP', field: 'ip_asignada', width: 130, filter: 'agTextColumnFilter',
+      cellRenderer: ({ value }) => value
+        ? <span className="qmono" style={{ fontSize: 11 }}>{value}</span>
+        : <span className="qmuted">—</span> },
+    { headerName: '', width: 130, pinned: 'right',
       sortable: false, filter: false, suppressMenu: true,
       cellRenderer: ({ data }) => (
         <Space size={2}>
           <Tooltip title="Editar">
             <Button size="small" icon={<EditOutlined />} type="text"
-              onClick={() => abrirEditar(data)} disabled={!esJefe} />
+              style={{ color: 'var(--ink-2)' }} onClick={() => abrirEditar(data)} disabled={!esJefe} />
           </Tooltip>
           <Tooltip title="Asignar">
             <Button size="small" icon={<SwapOutlined />} type="text"
-              onClick={() => abrirAsignar(data)} disabled={!esJefe} />
+              style={{ color: 'var(--acc)' }} onClick={() => abrirAsignar(data)} disabled={!esJefe} />
           </Tooltip>
           <Tooltip title="Historial">
             <Button size="small" icon={<HistoryOutlined />} type="text"
-              onClick={() => abrirHistorial(data)} />
+              style={{ color: 'var(--ink-2)' }} onClick={() => abrirHistorial(data)} />
           </Tooltip>
           <Tooltip title="Dar de baja">
             <Popconfirm title="¿Confirmar baja?" onConfirm={() => darBaja(data)} disabled={!esJefe}>
@@ -330,231 +280,208 @@ const TabEquipos = forwardRef(function TabEquipos({ usuarios, sedes }, ref) {
 
   return (
     <div>
-      {/* Búsqueda rápida */}
-      <div style={{ marginBottom: 8 }}>
-        <Input prefix={<SearchOutlined style={{ color: '#94a3b8' }} />}
-          placeholder="Buscar en todos los campos..." allowClear size="small"
-          style={{ width: 280, fontSize: 12 }}
-          onChange={(e) => gridRef.current?.api.setGridOption('quickFilterText', e.target.value)} />
+      <div className="qtoolbar">
+        <div className="qinput-wrap">
+          <SearchOutlined />
+          <input className="qinput" placeholder="Buscar en todos los campos…"
+            onChange={(e) => gridRef.current?.api.setGridOption('quickFilterText', e.target.value)} />
+        </div>
+        <span style={{ marginLeft: 'auto' }} className="qmuted qmono">{equipos.length} equipos</span>
       </div>
 
-      <div className={`${AG_THEME_CLASS} grid-container`}>
+      <div className={`${AG_THEME_CLASS} qgrid`}>
         <AgGridReact
           ref={gridRef} rowData={equipos} columnDefs={columnDefs}
-          defaultColDef={{}} {...defaultGridOptions}
-          loading={loading} rowHeight={52} headerHeight={40}
+          {...defaultGridOptions}
+          loading={loading} rowHeight={48} headerHeight={36}
           getRowId={p => String(p.data.id)}
           onGridReady={p => p.api.sizeColumnsToFit()}
           onFirstDataRendered={p => p.api.sizeColumnsToFit()}
         />
       </div>
 
-      {/* Drawer Crear/Editar */}
+      {/* DRAWER FORM equipo */}
       <Drawer
-        title={seleccionado ? `Editar: ${seleccionado.codigo_inventario}` : 'Registrar equipo'}
-        open={drawerForm} onClose={() => setDrawerForm(false)} width={640}
-        extra={<Button type="primary" onClick={() => form.submit()}>
-          {seleccionado ? 'Guardar cambios' : 'Registrar'}
-        </Button>}
+        title={
+          <QDrawerTitle icon={seleccionado ? <EditOutlined /> : <LaptopOutlined />}>
+            {seleccionado ? `Editar ${seleccionado.codigo_inventario}` : 'Registrar equipo'}
+          </QDrawerTitle>
+        }
+        open={drawerForm} onClose={() => setDrawerForm(false)} width={680}
+        styles={{
+          body: { padding: 0, background: 'var(--bg-canvas)' },
+          header: { background: 'var(--bg-canvas)', borderBottom: '1px solid var(--line-1)' },
+        }}
       >
-        <Form form={form} layout="vertical" onFinish={guardar}>
-          {/* Foto */}
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
-            <FotoEquipoUpload value={fotoUrl} onChange={setFotoUrl} />
+        <Form form={form} layout="vertical" onFinish={guardar}
+          style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ flex: 1, overflowY: 'auto' }}>
+
+            <div className="qform-section-h"><CameraOutlined /> Foto y código</div>
+            <div className="qform-section-b">
+              <div style={{ display: 'flex', gap: 16, marginBottom: 14 }}>
+                <FotoEquipoUpload value={fotoUrl} onChange={setFotoUrl} />
+                <div style={{ flex: 1 }}>
+                  <Row gutter={12}>
+                    <Col span={12}>
+                      <Form.Item name="codigo_inventario" label="Código de inventario" rules={[{ required: true }]} style={{ marginBottom: 14 }}>
+                        <Input disabled={!!seleccionado} />
+                      </Form.Item>
+                    </Col>
+                    <Col span={12}>
+                      <Form.Item name="codigo_patrimonial" label="Código patrimonial" style={{ marginBottom: 14 }}>
+                        <Input placeholder="PAT-2024-0001" />
+                      </Form.Item>
+                    </Col>
+                  </Row>
+                </div>
+              </div>
+            </div>
+
+            <div className="qform-section-h"><LaptopOutlined /> Identificación</div>
+            <div className="qform-section-b">
+              <Row gutter={12}>
+                <Col span={8}>
+                  <Form.Item name="tipo" label="Tipo" rules={[{ required: true }]}>
+                    <Select>
+                      {TIPOS_EQUIPO.map(t => <Option key={t.value} value={t.value}>{t.icon} {t.label}</Option>)}
+                    </Select>
+                  </Form.Item>
+                </Col>
+                <Col span={8}>
+                  <Form.Item name="marca" label="Marca" rules={[{ required: true }]}>
+                    <Input />
+                  </Form.Item>
+                </Col>
+                <Col span={8}>
+                  <Form.Item name="modelo" label="Modelo" rules={[{ required: true }]}>
+                    <Input />
+                  </Form.Item>
+                </Col>
+              </Row>
+              <Row gutter={12}>
+                <Col span={12}>
+                  <Form.Item name="serie" label="N° de serie"><Input /></Form.Item>
+                </Col>
+                <Col span={12}>
+                  <Form.Item name="estado" label="Estado" initialValue="activo">
+                    <Select>
+                      {ESTADOS_EQUIPO.map(e => <Option key={e.value} value={e.value}>{e.label}</Option>)}
+                    </Select>
+                  </Form.Item>
+                </Col>
+              </Row>
+            </div>
+
+            <div className="qform-section-h">Especificaciones técnicas</div>
+            <div className="qform-section-b">
+              <Row gutter={12}>
+                <Col span={12}><Form.Item name="procesador" label="Procesador"><Input placeholder="Intel Core i5-1235U" /></Form.Item></Col>
+                <Col span={6}><Form.Item name="ram_gb" label="RAM (GB)"><InputNumber min={1} style={{ width: '100%' }} /></Form.Item></Col>
+                <Col span={6}><Form.Item name="disco_gb" label="Disco (GB)"><InputNumber min={1} style={{ width: '100%' }} /></Form.Item></Col>
+              </Row>
+              <Row gutter={12}>
+                <Col span={12}><Form.Item name="sistema_operativo" label="Sistema operativo"><Input placeholder="Windows 11 Pro" /></Form.Item></Col>
+                <Col span={12}><Form.Item name="office_version" label="Office / Suite"><Input placeholder="Microsoft 365" /></Form.Item></Col>
+              </Row>
+              <Row gutter={12}>
+                <Col span={12}><Form.Item name="mac_address" label="MAC Address"><Input placeholder="AA:BB:CC:DD:EE:FF" /></Form.Item></Col>
+                <Col span={12}><Form.Item name="ip_asignada" label="IP asignada"><Input placeholder="192.168.1.100" /></Form.Item></Col>
+              </Row>
+            </div>
+
+            <div className="qform-section-h">Datos financieros</div>
+            <div className="qform-section-b">
+              <Row gutter={12}>
+                <Col span={12}><Form.Item name="fecha_compra" label="Fecha de compra"><DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" /></Form.Item></Col>
+                <Col span={12}><Form.Item name="valor_compra" label="Valor de compra (S/)"><InputNumber min={0} style={{ width: '100%' }} /></Form.Item></Col>
+              </Row>
+              <Row gutter={12}>
+                <Col span={8}><Form.Item name="vida_util_anios" label="Vida útil (años)" initialValue={4}><InputNumber min={1} max={20} style={{ width: '100%' }} /></Form.Item></Col>
+                <Col span={8}><Form.Item name="garantia_hasta" label="Garantía hasta"><DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" /></Form.Item></Col>
+                <Col span={8}><Form.Item name="proveedor_id" label="Proveedor (ID)"><InputNumber min={1} style={{ width: '100%' }} /></Form.Item></Col>
+              </Row>
+            </div>
+
+            <div className="qform-section-h">Ubicación</div>
+            <div className="qform-section-b">
+              <Row gutter={12}>
+                <Col span={12}>
+                  <Form.Item name="sede_id" label="Sede">
+                    <Select allowClear placeholder="Seleccionar sede">
+                      {sedes.map(s => <Option key={s.id} value={s.id}>{s.nombre}</Option>)}
+                    </Select>
+                  </Form.Item>
+                </Col>
+                <Col span={12}><Form.Item name="ubicacion_fisica" label="Ubicación física"><Input placeholder="Piso 2 – Oficina 201" /></Form.Item></Col>
+              </Row>
+              <Form.Item name="observaciones" label="Observaciones" style={{ marginBottom: 6 }}>
+                <Input.TextArea rows={2} />
+              </Form.Item>
+            </div>
           </div>
-
-          <Divider orientation="left" plain>Identificación</Divider>
-          <Row gutter={12}>
-            <Col span={12}>
-              <Form.Item name="codigo_inventario" label="Código inventario" rules={[{ required: true }]}>
-                <Input disabled={!!seleccionado} />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item name="codigo_patrimonial" label="Código patrimonial">
-                <Input placeholder="PAT-2024-0001" />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={12}>
-            <Col span={8}>
-              <Form.Item name="tipo" label="Tipo" rules={[{ required: true }]}>
-                <Select>
-                  {TIPOS_EQUIPO.map(t => <Option key={t.value} value={t.value}>{t.icon} {t.label}</Option>)}
-                </Select>
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item name="marca" label="Marca" rules={[{ required: true }]}>
-                <Input />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item name="modelo" label="Modelo" rules={[{ required: true }]}>
-                <Input />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={12}>
-            <Col span={12}>
-              <Form.Item name="serie" label="Número de serie">
-                <Input />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item name="estado" label="Estado" initialValue="activo">
-                <Select>
-                  {ESTADOS_EQUIPO.map(e => <Option key={e.value} value={e.value}>{e.label}</Option>)}
-                </Select>
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Divider orientation="left" plain>Especificaciones técnicas</Divider>
-          <Row gutter={12}>
-            <Col span={12}>
-              <Form.Item name="procesador" label="Procesador">
-                <Input placeholder="Intel Core i5-1235U" />
-              </Form.Item>
-            </Col>
-            <Col span={6}>
-              <Form.Item name="ram_gb" label="RAM (GB)">
-                <InputNumber min={1} style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-            <Col span={6}>
-              <Form.Item name="disco_gb" label="Disco (GB)">
-                <InputNumber min={1} style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={12}>
-            <Col span={12}>
-              <Form.Item name="sistema_operativo" label="Sistema operativo">
-                <Input placeholder="Windows 11 Pro" />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item name="office_version" label="Office / Suite">
-                <Input placeholder="Microsoft 365" />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={12}>
-            <Col span={12}>
-              <Form.Item name="mac_address" label="MAC Address">
-                <Input placeholder="AA:BB:CC:DD:EE:FF" />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item name="ip_asignada" label="IP asignada">
-                <Input placeholder="192.168.1.100" />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Divider orientation="left" plain>Datos financieros</Divider>
-          <Row gutter={12}>
-            <Col span={12}>
-              <Form.Item name="fecha_compra" label="Fecha de compra">
-                <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item name="valor_compra" label="Valor de compra (S/)">
-                <InputNumber min={0} style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={12}>
-            <Col span={8}>
-              <Form.Item name="vida_util_anios" label="Vida útil (años)" initialValue={4}>
-                <InputNumber min={1} max={20} style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item name="garantia_hasta" label="Garantía hasta">
-                <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item name="proveedor_id" label="Proveedor">
-                <InputNumber min={1} style={{ width: '100%' }} placeholder="ID proveedor" />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Divider orientation="left" plain>Ubicación</Divider>
-          <Row gutter={12}>
-            <Col span={12}>
-              <Form.Item name="sede_id" label="Sede">
-                <Select allowClear placeholder="Seleccionar sede">
-                  {sedes.map(s => <Option key={s.id} value={s.id}>{s.nombre}</Option>)}
-                </Select>
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item name="ubicacion_fisica" label="Ubicación física">
-                <Input placeholder="Piso 2 – Oficina 201" />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Form.Item name="observaciones" label="Observaciones">
-            <Input.TextArea rows={2} />
-          </Form.Item>
+          <div className="qform-footer">
+            <Button onClick={() => setDrawerForm(false)}>Cancelar</Button>
+            <Button type="primary" htmlType="submit">
+              {seleccionado ? 'Guardar cambios' : 'Registrar equipo'}
+            </Button>
+          </div>
         </Form>
       </Drawer>
 
-      {/* Drawer Asignar */}
+      {/* DRAWER ASIGNAR */}
       <Drawer
-        title={`Asignar: ${seleccionado?.codigo_inventario}`}
-        open={drawerAsignar} onClose={() => setDrawerAsignar(false)} width={440}
-        extra={<Button type="primary" onClick={() => formAsig.submit()}>Confirmar asignación</Button>}
+        title={<QDrawerTitle icon={<SwapOutlined />}>Asignar {seleccionado?.codigo_inventario}</QDrawerTitle>}
+        open={drawerAsignar} onClose={() => setDrawerAsignar(false)} width={480}
+        styles={{ body: { padding: '20px 24px', background: 'var(--bg-canvas)' } }}
       >
-        <Alert type="info" showIcon style={{ marginBottom: 16 }}
+        <Alert className="qalert" type="info" showIcon
           message="Se generará un acta de movimiento automáticamente." />
-        <Form form={formAsig} layout="vertical" onFinish={guardarAsignacion}>
+        <Form form={formAsig} layout="vertical" onFinish={guardarAsignacion} style={{ marginTop: 16 }}>
           <Form.Item name="usuario_id" label="Asignar a usuario">
-            <Select allowClear placeholder="Sin asignar (bodega)">
+            <Select allowClear showSearch optionFilterProp="children" placeholder="Sin asignar (bodega)">
               {usuarios.map(u => (
                 <Option key={u.id} value={u.id}>{u.nombre} {u.apellido} – {u.area || '—'}</Option>
               ))}
             </Select>
           </Form.Item>
           <Form.Item name="sede_id" label="Sede destino">
-            <Select allowClear>
-              {sedes.map(s => <Option key={s.id} value={s.id}>{s.nombre}</Option>)}
-            </Select>
+            <Select allowClear>{sedes.map(s => <Option key={s.id} value={s.id}>{s.nombre}</Option>)}</Select>
           </Form.Item>
           <Form.Item name="ubicacion_fisica" label="Ubicación física">
             <Input placeholder="Piso 3 – Of. 301" />
           </Form.Item>
           <Form.Item name="motivo" label="Motivo" rules={[{ required: true }]}>
-            <Input.TextArea rows={2} placeholder="Ej: Asignación inicial, reemplazo por falla..." />
+            <Input.TextArea rows={2} placeholder="Ej: Asignación inicial, reemplazo por falla…" />
           </Form.Item>
           <Form.Item name="acta_numero" label="N° de acta">
             <Input placeholder="ACTA-2024-0001" />
           </Form.Item>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+            <Button onClick={() => setDrawerAsignar(false)}>Cancelar</Button>
+            <Button type="primary" htmlType="submit">Confirmar asignación</Button>
+          </div>
         </Form>
       </Drawer>
 
-      {/* Drawer Historial */}
+      {/* DRAWER HISTORIAL */}
       <Drawer
-        title={`Historial: ${seleccionado?.codigo_inventario}`}
-        open={drawerHistorial} onClose={() => setDrawerHistorial(false)} width={480}
+        title={<QDrawerTitle icon={<HistoryOutlined />}>Historial {seleccionado?.codigo_inventario}</QDrawerTitle>}
+        open={drawerHistorial} onClose={() => setDrawerHistorial(false)} width={500}
+        styles={{ body: { padding: '20px 24px', background: 'var(--bg-canvas)' } }}
       >
         {historial.length === 0
-          ? <Text type="secondary">Sin movimientos registrados.</Text>
+          ? <span className="qmuted">Sin movimientos registrados.</span>
           : <Timeline items={historial.map(h => ({
-              color: h.tipo === 'baja' ? 'red' : h.tipo === 'asignacion' ? 'blue' : 'green',
+              color: h.tipo === 'baja' ? '#A8201A' : h.tipo === 'asignacion' ? '#B45309' : '#15633F',
               children: (
                 <div>
-                  <div style={{ fontWeight: 500, textTransform: 'capitalize' }}>{h.tipo}</div>
-                  <div style={{ fontSize: 12, color: '#888' }}>
+                  <div style={{ fontWeight: 600, textTransform: 'capitalize', color: 'var(--ink-1)' }}>{h.tipo}</div>
+                  <div className="qmuted qmono" style={{ fontSize: 11 }}>
                     {dayjs(h.fecha).format('DD/MM/YYYY HH:mm')}
                   </div>
-                  <div style={{ fontSize: 12 }}>{h.motivo}</div>
-                  {h.acta_numero && <Tag style={{ marginTop: 4 }}>Acta: {h.acta_numero}</Tag>}
+                  <div style={{ fontSize: 12.5, color: 'var(--ink-2)', marginTop: 4 }}>{h.motivo}</div>
+                  {h.acta_numero && <QPill tone="muted">Acta {h.acta_numero}</QPill>}
                 </div>
               )
             }))} />
@@ -564,16 +491,18 @@ const TabEquipos = forwardRef(function TabEquipos({ usuarios, sedes }, ref) {
   )
 })
 
-// ── TAB LICENCIAS (forwardRef) ────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────
+// TAB LICENCIAS
+// ─────────────────────────────────────────────────────────────────────
 const TabLicencias = forwardRef(function TabLicencias({ stats }, ref) {
   const gridRef = useRef()
   const { usuario } = useAuthStore()
   const esJefe = ['jefe','especialista'].includes(usuario?.rol)
 
-  const [licencias,  setLicencias] = useState([])
-  const [loading,    setLoading]   = useState(false)
-  const [drawerForm, setDrawerForm]= useState(false)
-  const [editando,   setEditando]  = useState(null)
+  const [licencias, setLicencias] = useState([])
+  const [loading, setLoading]     = useState(false)
+  const [drawerForm, setDrawerForm] = useState(false)
+  const [editando, setEditando] = useState(null)
   const [form] = Form.useForm()
 
   const cargar = useCallback(async () => {
@@ -584,15 +513,9 @@ const TabLicencias = forwardRef(function TabLicencias({ stats }, ref) {
     } catch { message.error('Error al cargar licencias') }
     finally { setLoading(false) }
   }, [])
-
   useEffect(() => { cargar() }, [cargar])
 
-  const abrirNuevo = () => {
-    setEditando(null)
-    form.resetFields()
-    setDrawerForm(true)
-  }
-
+  const abrirNuevo = () => { setEditando(null); form.resetFields(); setDrawerForm(true) }
   useImperativeHandle(ref, () => ({ reload: cargar, openNew: abrirNuevo }), [cargar])
 
   const abrirEditar = (lic) => {
@@ -604,7 +527,6 @@ const TabLicencias = forwardRef(function TabLicencias({ stats }, ref) {
     })
     setDrawerForm(true)
   }
-
   const guardar = async (values) => {
     const payload = {
       ...values,
@@ -619,43 +541,61 @@ const TabLicencias = forwardRef(function TabLicencias({ stats }, ref) {
         await inventarioService.crearLicencia(payload)
         message.success('Licencia registrada')
       }
-      setDrawerForm(false)
-      cargar()
+      setDrawerForm(false); cargar()
     } catch (err) { message.error(err.response?.data?.detail || 'Error') }
   }
 
   const columnDefs = useMemo(() => [
-    { headerName: '', width: 44, checkboxSelection: true,
-      headerCheckboxSelection: true, pinned: 'left',
-      suppressMenu: true, sortable: false, filter: false },
-    { headerName: 'Software', field: 'software', minWidth: 200,
-      pinned: 'left', filter: 'agTextColumnFilter',
+    { headerName: '', width: 38, checkboxSelection: true, headerCheckboxSelection: true,
+      pinned: 'left', suppressMenu: true, sortable: false, filter: false },
+    { headerName: 'Software', field: 'software', minWidth: 220, pinned: 'left',
+      filter: 'agTextColumnFilter',
       cellRenderer: ({ data }) => (
-        <div>
-          <div style={{ fontWeight: 500 }}>{data?.software}</div>
-          <div style={{ fontSize: 11, color: '#888' }}>{data?.fabricante} · v{data?.version || '—'}</div>
+        <div style={{ lineHeight: 1.2 }}>
+          <div style={{ fontWeight: 500, color: 'var(--ink-1)' }}>{data?.software}</div>
+          <div className="qmono qmuted" style={{ fontSize: 10.5 }}>
+            {data?.fabricante} · v{data?.version || '—'}
+          </div>
         </div>
       )},
-    { headerName: 'Tipo', field: 'tipo_licencia', width: 120, filter: 'agSetColumnFilter' },
-    { headerName: 'Stock', field: 'cantidad_usada', width: 140, filter: false, cellRenderer: StockRenderer },
+    { headerName: 'Tipo', field: 'tipo_licencia', width: 130, filter: 'agSetColumnFilter',
+      cellRenderer: ({ value }) => <QPill tone="muted">{value}</QPill>,
+      cellStyle: { overflow: 'visible' } },
+    { headerName: 'Stock', field: 'cantidad_usada', width: 160, filter: false,
+      cellStyle: { overflow: 'visible' },
+      cellRenderer: ({ data }) => {
+        if (!data) return null
+        const { cantidad_usada, cantidad_total } = data
+        return <QProgress value={cantidad_usada} max={cantidad_total}
+          label={`${cantidad_usada}/${cantidad_total}`} />
+      }},
     { headerName: 'Disponibles', field: 'disponibles', width: 110, filter: 'agNumberColumnFilter',
+      cellStyle: { overflow: 'visible' },
       cellRenderer: ({ value }) => (
-        <Tag color={value <= 0 ? 'red' : value <= 2 ? 'orange' : 'green'}>{value}</Tag>
+        <QPill tone={value <= 0 ? 'crit' : value <= 2 ? 'warn' : 'ok'}>{value}</QPill>
       )},
-    { headerName: 'Vencimiento', field: 'fecha_vencimiento', width: 150,
-      filter: 'agDateColumnFilter', cellRenderer: LicenciaVencimientoRenderer },
-    { headerName: 'Valor', field: 'valor', width: 120,
-      filter: 'agNumberColumnFilter', valueFormatter: p => formatCurrency(p.value) },
+    { headerName: 'Vencimiento', field: 'fecha_vencimiento', width: 140, filter: 'agDateColumnFilter',
+      cellStyle: { overflow: 'visible' },
+      cellRenderer: ({ data }) => {
+        const { estado_vencimiento, dias_para_vencer, fecha_vencimiento } = data || {}
+        if (!fecha_vencimiento) return <QPill tone="muted">Sin vencimiento</QPill>
+        const tone = { vencida:'crit', critico:'crit', urgente:'warn', alerta:'warn', vigente:'ok' }
+        const lbl = estado_vencimiento === 'vencida' ? 'Vencida'
+          : estado_vencimiento === 'vigente' ? dayjs(fecha_vencimiento).format('DD/MM/YY')
+          : `${dias_para_vencer}d`
+        return <QPill tone={tone[estado_vencimiento] || 'muted'}>{lbl}</QPill>
+      }},
+    { headerName: 'Valor', field: 'valor', width: 120, filter: 'agNumberColumnFilter',
+      cellRenderer: ({ value }) => <span className="qmono" style={{ fontSize: 11.5 }}>{formatCurrency(value)}</span> },
     { headerName: 'Estado', field: 'activa', width: 100, filter: 'agSetColumnFilter',
-      cellRenderer: ({ value }) => (
-        <Badge status={value ? 'success' : 'error'} text={value ? 'Activa' : 'Inactiva'} />
-      )},
-    { headerName: 'Acciones', width: 90, pinned: 'right',
+      cellStyle: { overflow: 'visible' },
+      cellRenderer: ({ value }) => <QPill tone={value ? 'ok' : 'muted'}>{value ? 'Activa' : 'Inactiva'}</QPill> },
+    { headerName: '', width: 70, pinned: 'right',
       sortable: false, filter: false, suppressMenu: true,
       cellRenderer: ({ data }) => (
         <Tooltip title="Editar">
           <Button size="small" icon={<EditOutlined />} type="text"
-            onClick={() => abrirEditar(data)} disabled={!esJefe} />
+            style={{ color: 'var(--ink-2)' }} onClick={() => abrirEditar(data)} disabled={!esJefe} />
         </Tooltip>
       )},
   ], [esJefe])
@@ -663,23 +603,23 @@ const TabLicencias = forwardRef(function TabLicencias({ stats }, ref) {
   return (
     <div>
       {stats?.licencias_vencidas > 0 && (
-        <Alert type="error" showIcon icon={<WarningOutlined />} style={{ marginBottom: 12 }}
+        <Alert className="qalert" type="error" showIcon icon={<WarningOutlined />}
           message={`${stats.licencias_vencidas} licencia(s) vencida(s) — requieren renovación urgente`} />
       )}
       {stats?.licencias_por_vencer > 0 && (
-        <Alert type="warning" showIcon style={{ marginBottom: 12 }}
+        <Alert className="qalert" type="warning" showIcon
           message={`${stats.licencias_por_vencer} licencia(s) vencen en los próximos 30 días`} />
       )}
 
-      <div className={`${AG_THEME_CLASS} grid-container`}>
+      <div className={`${AG_THEME_CLASS} qgrid`}>
         <AgGridReact
           ref={gridRef} rowData={licencias} columnDefs={columnDefs}
-          defaultColDef={{}} {...defaultGridOptions}
-          loading={loading} rowHeight={50} headerHeight={40}
+          {...defaultGridOptions}
+          loading={loading} rowHeight={44} headerHeight={36}
           getRowId={p => String(p.data.id)}
           getRowStyle={({ data }) => {
-            if (data?.estado_vencimiento === 'vencida') return { background: '#fff1f0' }
-            if (data?.estado_vencimiento === 'critico') return { background: '#fff7e6' }
+            if (data?.estado_vencimiento === 'vencida') return { background: 'rgba(168,32,26,0.05)' }
+            if (data?.estado_vencimiento === 'critico') return { background: 'rgba(180,83,9,0.05)' }
             return {}
           }}
           onGridReady={p => p.api.sizeColumnsToFit()}
@@ -688,92 +628,87 @@ const TabLicencias = forwardRef(function TabLicencias({ stats }, ref) {
       </div>
 
       <Drawer
-        title={editando ? `Editar: ${editando.software}` : 'Registrar licencia'}
-        open={drawerForm} onClose={() => setDrawerForm(false)} width={520}
-        extra={<Button type="primary" onClick={() => form.submit()}>
-          {editando ? 'Guardar' : 'Registrar'}
-        </Button>}
+        title={<QDrawerTitle icon={<FileTextOutlined />}>{editando ? `Editar ${editando.software}` : 'Registrar licencia'}</QDrawerTitle>}
+        open={drawerForm} onClose={() => setDrawerForm(false)} width={560}
+        styles={{
+          body: { padding: 0, background: 'var(--bg-canvas)' },
+          header: { background: 'var(--bg-canvas)', borderBottom: '1px solid var(--line-1)' },
+        }}
       >
-        <Form form={form} layout="vertical" onFinish={guardar}>
-          <Row gutter={12}>
-            <Col span={16}>
-              <Form.Item name="software" label="Software" rules={[{ required: true }]}>
-                <Input placeholder="Microsoft 365, AutoCAD, etc." />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item name="version" label="Versión">
-                <Input placeholder="2024" />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={12}>
-            <Col span={12}>
-              <Form.Item name="fabricante" label="Fabricante">
-                <Input placeholder="Microsoft, Autodesk..." />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item name="tipo_licencia" label="Tipo" rules={[{ required: true }]}>
-                <Select>
-                  {TIPOS_LICENCIA.map(t => <Option key={t.value} value={t.value}>{t.label}</Option>)}
-                </Select>
-              </Form.Item>
-            </Col>
-          </Row>
-          <Form.Item name="cantidad_total" label="Cantidad de licencias" initialValue={1}>
-            <InputNumber min={1} style={{ width: '100%' }} />
-          </Form.Item>
-          <Form.Item name="clave" label="Clave / Número de serie">
-            <Input.TextArea rows={2} placeholder="XXXXX-XXXXX-XXXXX-XXXXX" />
-          </Form.Item>
-          <Row gutter={12}>
-            <Col span={12}>
-              <Form.Item name="fecha_compra" label="Fecha de compra">
-                <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item name="fecha_vencimiento" label="Fecha de vencimiento">
-                <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={12}>
-            <Col span={12}>
-              <Form.Item name="valor" label="Valor (S/)">
-                <InputNumber min={0} style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item name="proveedor_id" label="Proveedor (ID)">
+        <Form form={form} layout="vertical" onFinish={guardar}
+          style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ flex: 1, overflowY: 'auto' }}>
+            <div className="qform-section-h">Software</div>
+            <div className="qform-section-b">
+              <Row gutter={12}>
+                <Col span={16}>
+                  <Form.Item name="software" label="Nombre del software" rules={[{ required: true }]}>
+                    <Input placeholder="Microsoft 365, AutoCAD…" />
+                  </Form.Item>
+                </Col>
+                <Col span={8}><Form.Item name="version" label="Versión"><Input placeholder="2024" /></Form.Item></Col>
+              </Row>
+              <Row gutter={12}>
+                <Col span={12}><Form.Item name="fabricante" label="Fabricante"><Input placeholder="Microsoft, Autodesk…" /></Form.Item></Col>
+                <Col span={12}>
+                  <Form.Item name="tipo_licencia" label="Tipo" rules={[{ required: true }]}>
+                    <Select>{TIPOS_LICENCIA.map(t => <Option key={t.value} value={t.value}>{t.label}</Option>)}</Select>
+                  </Form.Item>
+                </Col>
+              </Row>
+            </div>
+
+            <div className="qform-section-h">Licenciamiento</div>
+            <div className="qform-section-b">
+              <Form.Item name="cantidad_total" label="Cantidad de licencias" initialValue={1}>
                 <InputNumber min={1} style={{ width: '100%' }} />
               </Form.Item>
-            </Col>
-          </Row>
-          <Form.Item name="observaciones" label="Observaciones">
-            <Input.TextArea rows={2} />
-          </Form.Item>
+              <Form.Item name="clave" label="Clave / Número de serie">
+                <Input.TextArea rows={2} placeholder="XXXXX-XXXXX-XXXXX-XXXXX" />
+              </Form.Item>
+            </div>
+
+            <div className="qform-section-h">Vigencia y costo</div>
+            <div className="qform-section-b">
+              <Row gutter={12}>
+                <Col span={12}><Form.Item name="fecha_compra" label="Fecha de compra"><DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" /></Form.Item></Col>
+                <Col span={12}><Form.Item name="fecha_vencimiento" label="Fecha de vencimiento"><DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" /></Form.Item></Col>
+              </Row>
+              <Row gutter={12}>
+                <Col span={12}><Form.Item name="valor" label="Valor (S/)"><InputNumber min={0} style={{ width: '100%' }} /></Form.Item></Col>
+                <Col span={12}><Form.Item name="proveedor_id" label="Proveedor (ID)"><InputNumber min={1} style={{ width: '100%' }} /></Form.Item></Col>
+              </Row>
+              <Form.Item name="observaciones" label="Observaciones" style={{ marginBottom: 6 }}>
+                <Input.TextArea rows={2} />
+              </Form.Item>
+            </div>
+          </div>
+          <div className="qform-footer">
+            <Button onClick={() => setDrawerForm(false)}>Cancelar</Button>
+            <Button type="primary" htmlType="submit">{editando ? 'Guardar' : 'Registrar'}</Button>
+          </div>
         </Form>
       </Drawer>
     </div>
   )
 })
 
-// ── PÁGINA PRINCIPAL ──────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────
+// PÁGINA PRINCIPAL
+// ─────────────────────────────────────────────────────────────────────
 export default function InventarioPage() {
   const { usuario } = useAuthStore()
   const esJefe = ['jefe','especialista'].includes(usuario?.rol)
 
-  const [usuarios,  setUsuarios]  = useState([])
-  const [sedes,     setSedes]     = useState([])
-  const [stats,     setStats]     = useState({})
+  const [usuarios, setUsuarios] = useState([])
+  const [sedes, setSedes]       = useState([])
+  const [stats, setStats]       = useState({})
   const [activeTab, setActiveTab] = useState('equipos')
-  const [loading,   setLoading]   = useState(false)
+  const [loading, setLoading]   = useState(false)
 
-  const equiposRef   = useRef()
+  const equiposRef = useRef()
   const licenciasRef = useRef()
-  const activeRef    = activeTab === 'equipos' ? equiposRef : licenciasRef
+  const activeRef = activeTab === 'equipos' ? equiposRef : licenciasRef
 
   useEffect(() => {
     usuarioService.listar({ limit: 200 }).then(({ data }) => setUsuarios(data))
@@ -787,65 +722,62 @@ export default function InventarioPage() {
   const handleExport = () => activeRef.current?.exportar?.()
   const handleNew    = () => activeRef.current?.openNew()
 
-  const tabs = [
-    {
-      key: 'equipos',
-      label: <span><LaptopOutlined /> Equipos ({stats.total_equipos || 0})</span>,
-      children: <TabEquipos ref={equiposRef} usuarios={usuarios} sedes={sedes} />,
-    },
-    {
-      key: 'licencias',
-      label: (
-        <span>
-          <FileTextOutlined /> Licencias
-          {stats.licencias_vencidas > 0 && (
-            <Tag color="red" style={{ marginLeft: 6, fontSize: 10 }}>
-              {stats.licencias_vencidas} vencidas
-            </Tag>
-          )}
-        </span>
-      ),
-      children: <TabLicencias ref={licenciasRef} stats={stats} />,
-    },
-  ]
-
   return (
     <div>
-      {/* Header con botones al mismo nivel que el título */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <Title level={4} style={{ margin: 0 }}>
-          <SafetyOutlined style={{ marginRight: 8 }} />
-          Inventario TI
-        </Title>
-        <Space>
-          <Button icon={<ReloadOutlined />} onClick={handleReload} loading={loading}>
-            Actualizar
-          </Button>
-          {activeTab === 'equipos' && (
-            <Button icon={<ExportOutlined />} onClick={handleExport}>
-              Exportar CSV
-            </Button>
-          )}
-          {esJefe && (
-            <Button type="primary" icon={<PlusOutlined />} onClick={handleNew}>
-              {activeTab === 'equipos' ? 'Registrar equipo' : 'Registrar licencia'}
-            </Button>
-          )}
-        </Space>
-      </div>
+      <QPageHeader
+        eyebrow="Activos TI · inventario"
+        title="Inventario"
+        titleEm="de activos"
+        subtitle={`${stats.total_equipos ?? 0} equipos registrados · valor de inventario ${formatCurrency(stats.valor_total_inventario)}`}
+        actions={
+          <Space>
+            <Button icon={<ReloadOutlined />} onClick={handleReload} loading={loading}>Actualizar</Button>
+            {activeTab === 'equipos' && <Button icon={<ExportOutlined />} onClick={handleExport}>Exportar CSV</Button>}
+            {esJefe && (
+              <Button type="primary" icon={<PlusOutlined />} onClick={handleNew}>
+                {activeTab === 'equipos' ? 'Registrar equipo' : 'Registrar licencia'}
+              </Button>
+            )}
+          </Space>
+        }
+      />
 
-      {/* KPI Strip */}
-      <KpiStrip items={[
-        { label: 'Total equipos',     value: stats.total_equipos,             color: '#64748b' },
-        { label: 'Activos',           value: stats.activos,                   color: '#22c55e' },
-        { label: 'En mantenimiento',  value: stats.en_mantenimiento,          color: '#f59e0b' },
-        { label: 'De baja',           value: stats.de_baja,                   color: '#ef4444' },
-        { label: 'Garantía x vencer', value: stats.garantia_por_vencer,       color: '#f97316' },
-        { label: 'Valor inventario',  value: formatCurrency(stats.valor_total_inventario), color: '#1677ff' },
-        { label: 'Valor depreciado',  value: formatCurrency(stats.valor_depreciado_total), color: '#7c3aed' },
+      <QKpiRow items={[
+        { lbl: 'Total equipos',     val: stats.total_equipos ?? 0 },
+        { lbl: 'Activos',           val: stats.activos ?? 0,            tone: 'ok' },
+        { lbl: 'En mantenimiento',  val: stats.en_mantenimiento ?? 0,   tone: 'warn' },
+        { lbl: 'De baja',           val: stats.de_baja ?? 0,            tone: 'crit' },
+        { lbl: 'Garantía x vencer', val: stats.garantia_por_vencer ?? 0,tone: 'warn' },
+        { lbl: 'Valor inventario',  val: formatCurrency(stats.valor_total_inventario),  tone: 'info' },
+        { lbl: 'Valor depreciado',  val: formatCurrency(stats.valor_depreciado_total),  tone: 'plum' },
       ]} />
 
-      <Tabs items={tabs} activeKey={activeTab} onChange={setActiveTab} />
+      <Tabs
+        className="qtabs"
+        activeKey={activeTab}
+        onChange={setActiveTab}
+        items={[
+          {
+            key: 'equipos',
+            label: <span><LaptopOutlined /> Equipos ({stats.total_equipos || 0})</span>,
+            children: <TabEquipos ref={equiposRef} usuarios={usuarios} sedes={sedes} />,
+          },
+          {
+            key: 'licencias',
+            label: (
+              <span>
+                <FileTextOutlined /> Licencias
+                {stats.licencias_vencidas > 0 && (
+                  <span style={{ marginLeft: 6 }}>
+                    <QPill tone="crit">{stats.licencias_vencidas} vencidas</QPill>
+                  </span>
+                )}
+              </span>
+            ),
+            children: <TabLicencias ref={licenciasRef} stats={stats} />,
+          },
+        ]}
+      />
     </div>
   )
 }

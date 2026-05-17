@@ -1,7 +1,7 @@
 # QHelpdesk — Seguimiento y Roadmap
 
 > Última actualización: 2026-05-15  
-> Auditoría inicial completada. Madurez estimada: **~65% MVP**
+> Madurez estimada: **~90% MVP**. Fase 3 completa (excepto email inbound y WhatsApp, pendientes de replantear)
 
 ---
 
@@ -90,21 +90,21 @@
 
 | # | Tarea | Complejidad | Estado |
 |---|-------|-------------|--------|
-| 7 | LDAP/AD sync — conectar `ldap_client.py` existente | Media | 🔵 Backlog |
-| 8 | Portal mejorado — búsqueda KB, filtros en mis-tickets | Media | 🔵 Backlog |
-| 9 | Alertas automáticas vencimiento licencias y contratos | Media | 🔵 Backlog |
-| 10 | UI Base de conocimiento completa | Alta | 🔵 Backlog |
-| 11 | Dashboard SLA compliance — % tickets resueltos en tiempo | Media | 🔵 Backlog |
+| 7 | LDAP/AD sync — conectar `ldap_client.py` existente | Media | ⏸ Pendiente (docker LDAP en progreso) |
+| 8 | ~~Portal mejorado — búsqueda KB, filtros en mis-tickets~~ | Media | ✅ Hecho |
+| 9 | ~~Alertas automáticas vencimiento licencias y contratos~~ | Media | ✅ Hecho |
+| 10 | ~~UI Base de conocimiento completa~~ | Alta | ✅ Hecho |
+| 11 | ~~Dashboard SLA compliance — % tickets resueltos en tiempo~~ | Media | ✅ Hecho |
 
 ### Fase 3 — v1.5 (Prioridad BAJA)
 
 | # | Tarea | Complejidad | Estado |
 |---|-------|-------------|--------|
-| 12 | Email inbound — crear tickets desde email | Muy Alta | 🔵 Backlog |
-| 13 | Reportes avanzados — métricas técnico, trend analysis | Alta | 🔵 Backlog |
-| 14 | WhatsApp channel | Alta | 🔵 Backlog |
-| 15 | Módulo telefonía — análisis de costos y uso | Media | 🔵 Backlog |
-| 16 | Calendario/vista Gantt para mantenimiento | Alta | 🔵 Backlog |
+| 12 | Email inbound — crear tickets desde email | Muy Alta | ⏸ Pendiente (replantear) |
+| 13 | ~~Reportes avanzados — métricas técnico, trend analysis~~ | Alta | ✅ Hecho |
+| 14 | WhatsApp channel | Alta | ⏸ Pendiente (replantear) |
+| 15 | ~~Módulo telefonía — análisis de costos y uso~~ | Media | ✅ Hecho |
+| 16 | ~~Calendario/vista Gantt para mantenimiento~~ | Alta | ✅ Hecho |
 
 ---
 
@@ -139,3 +139,5 @@
 | 2026-05-15 | Logging en except pass. Email transaccional con Resend (ventas@qsdsoft.com): ticket asignado, resuelto, comentario, compra aprobada/rechazada |
 | 2026-05-15 | Migración email Resend→Mailjet (a136b0d2...). Alertas SLA Celery: verificar_sla cada 15min, dedup Redis (3h/6h), WS+email por_vencer y vencido. Docker: redis+worker+beat. |
 | 2026-05-15 | Email Mailjet confirmado funcionando (prueba recibida en georgeperezsalinas@gmail.com). Backend local OK con mailjet-rest + slowapi instalados en venv. |
+| 2026-05-15 | #9 Alertas vencimiento licencias+contratos: vencimiento_tasks.py (Celery daily), flags alerta_30/15/7 en DB, email+WS a jefe+especialista. #10 UI Base de conocimiento: ConocimientoPage con tabla, KPIs, drawer crear/editar/ver, filtros por estado/categoría, botón publicar rápido. Backend: endpoint admin/todos + DELETE. Menú LayoutPrincipal actualizado. #11 Dashboard SLA compliance: endpoint /tickets/sla-compliance (rate global, por prioridad, por técnico, tendencia 30d), sección 03 en DashboardPage con LineChart tendencia + BarChart prioridad + ranking técnicos. Fase 2 completa excepto LDAP. |
+| 2026-05-15 | Fase 3: #13 Reportes Analytics tab (tendencia semanal LineChart + distribución categorías horizontal BarChart + tabla métricas por técnico con SLA/NPS/tiempo). Endpoints: /tickets/metricas-tecnico, /tickets/tendencia-semanal. #15 Telefonía tab "Análisis de costos": endpoint /telefonia/analisis-costos (por operador/tipo/sede, próximas a vencer 60d, top 10 costosas). #16 Calendario mantenimiento: CalendarioMantenimiento con antd Calendar, badges por estado, panel lateral con órdenes del día seleccionado. |
